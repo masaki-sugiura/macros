@@ -1,0 +1,27 @@
+//	ファイルの取り扱いに必要なサブルーチン
+
+_common_getnoextfilename:
+	##l = strlen($$1);
+	while( ##l ){
+		##l = ##l - 1;
+		if( midstr($$1,##l,1) == "." ) return leftstr($$1,##l);
+	}
+	return $$1;
+
+#end_of_routine
+
+
+_common_removelastsep:
+	##l = strlen($$1);
+	if (##l == 0) return $$1;
+	else if (midstr($$1, ##l - 1, 1) == "\\") {
+		if (##l == 1)
+			return "";
+		else if (ascii(midstr($$1, ##l - 2, 1)) < 0x80)
+			return midstr($$1, 0, ##l - 1);
+	}
+	return $$1;
+
+#end_of_routine
+
+

@@ -1,0 +1,164 @@
+//	String Handling Functions
+_common_tolower:
+	$$str = "";
+	##s = strlen($$1);
+	while( ##s > 0 ){
+		##s = ##s - 1;
+		##code = ascii(midstr($$1,##s,1));
+		if( ##code > 64 && ##code < 91 ) ##code = ##code + 32;
+		$$str = char(##code) + $$str;
+	}
+	return $$str;
+
+#end_of_routine
+
+
+_common_toupper:
+	$$str = "";
+	##s = strlen($$1);
+	while( ##s > 0 ){
+		##s = ##s - 1;
+		##code = ascii(midstr($$1,##s,1));
+		if( ##code > 96 && ##code < 123 ) ##code = ##code - 32;
+		$$str = char(##code) + $$str;
+	}
+	return $$str;
+
+#end_of_routine
+
+
+_common_casechange:
+	$$str = "";
+	##s = strlen($$2);
+	while( ##s > 0 ){
+		##s = ##s - 1;
+		##code = ascii(midstr($$2,##s,1));
+		if( (!##1) && ##code > 64 && ##code < 91 ) ##code = ##code + 32;
+		else if( ##1 && ##code > 96 && ##code < 123 ) ##code = ##code - 32;
+		$$str = char(##code) + $$str;
+	}
+	return $$str;
+
+#end_of_routine
+
+
+_common_tozenkakuhira:
+	##hwnd = hidemaruhandle( 0 );
+	openfile "/h ";
+	##s_hwnd = hidemaruhandle( 0 );
+	insert $$1;
+	selectall;
+	tozenkakuhira;
+	gofileend;
+	$$tmp = gettext(0,0,x,y);
+	setactivehidemaru ##hwnd;
+	closehidemaruforced ##s_hwnd;
+	return $$tmp;
+
+#end_of_routine
+
+
+_common_tozenkakukata:
+	##hwnd = hidemaruhandle( 0 );
+	openfile "/h ";
+	##s_hwnd = hidemaruhandle( 0 );
+	insert $$1;
+	selectall;
+	tozenkakukata;
+	gofileend;
+	$$tmp = gettext(0,0,x,y);
+	setactivehidemaru ##hwnd;
+	closehidemaruforced ##s_hwnd;
+	return $$tmp;
+
+#end_of_routine
+
+
+_common_tohankaku:
+	##hwnd = hidemaruhandle( 0 );
+	openfile "/h ";
+	##s_hwnd = hidemaruhandle( 0 );
+	insert $$1;
+	selectall;
+	tohankaku;
+	gofileend;
+	$$tmp = gettext(0,0,x,y);
+	setactivehidemaru ##hwnd;
+	closehidemaruforced ##s_hwnd;
+	return $$tmp;
+
+#end_of_routine
+
+
+_common_sub:
+	##l = strlen($$1);
+	##a = strlen($$2);
+	##b = strlen($$3);
+
+	##s = 0;
+	##i = 0;
+	while( 1 ){
+		##c = strstr( midstr($$1,##s,##l), $$2 );
+		if( ##c == -1 ) break;
+		$$1 = leftstr($$1,##s+##c) + $$3 + midstr($$1,##s+##c+##a,##l);
+		##s = ##s + ##c + ##b;
+		##i = ##i + 1;
+		if( ##i == ##4 ) break;
+	}
+	return $$1;
+
+#end_of_routine
+
+
+_common_gsub:
+	##l = strlen($$1);
+	##a = strlen($$2);
+	##b = strlen($$3);
+
+	##s = 0;
+	while( 1 ){
+		##c = strstr( midstr($$1,##s,##l), $$2 );
+		if( ##c == -1 ) break;
+		$$1 = leftstr($$1,##s+##c) + $$3 + midstr($$1,##s+##c+##a,##l);
+		##s = ##s + ##c + ##b;
+	}
+	return $$1;
+
+#end_of_routine
+
+
+_common_strstr:
+	//	needs "_common_tolower" subroutine
+	call _common_tolower $$1;
+	$$1 = $$return;
+	call _common_tolower $$2;
+	$$2 = $$return;
+	return strstr($$1,$$2);
+
+#end_of_routine
+
+
+_common_split:
+	##l = strlen($$1);
+	##p = strlen($$2);
+	##a = 0;
+	while( 1 ){
+//	$$strの最後が$$sepだった場合に最後の配列を""として返したければ
+//	このすぐ後の一行をコメントアウトして下さい。
+	    if( !##l ) break;
+	    ##s = strstr($$1,$$2);
+	    if( ##s == -1 ){
+	        $spl[##a] = $$1;
+	        ##a = ##a + 1;
+	        break;
+	    }
+	    $spl[##a] = leftstr($$1,##s);
+	    ##l = ##l - ##s - ##p;
+	    $$1 = rightstr($$1,##l);
+	    ##a = ##a + 1;
+	}
+	return ##a;
+
+#end_of_routine
+
+

@@ -1,0 +1,86 @@
+WhatDayIsIt:
+	//  現在からの経過日数(負にすると日付を溯る)を受け取り、
+	//  "YYYY/MM/DD(Ｗ)" 形式で日付を返すサブルーチン
+
+	//	何月までに何日経ったかを格納する配列の生成
+	if( !#DEFINED ){
+		#MON[0] = 0;
+		##a = 1;
+		while( ##a <= 12 ){
+			if( ##a==2 ) ##i = 28;
+			else if( ##a==4 || ##a==6 || ##a==9 || ##a==11 )
+				##i = 30;
+			else ##i = 31;
+			#MON[##a] = #MON[##a-1] + ##i;
+			##a = ##a + 1;
+		}
+		#DEFINED = 1;	//	これもせこいスピード稼ぎのため(^^;
+	}
+
+	$$thisdate = date;
+	##y = val( leftstr($$thisdate,2) );
+	//	いわゆる「2000年問題」って奴(^^;
+	if( ##y < 80 ) ##y = 2000 + ##y;
+	else ##y = 1900 + ##y;
+	##m = val( midstr($$thisdate,3,2) );
+
+	##date = ##1 + val( midstr($$thisdate,6,2) ) + #MON[##m-1] + 
+		(##y-1)*365 + (##y-1)/4 - (##y-1)/100 + (##y-1)/400;
+	if( (!(##y%4)) && ( ##y%100 || (!(##y%400)) ) && ##m > 2 )
+		##date = ##date + 1;
+
+	##yy = 1980;		//	##yy = 1 で全部に対応(^^;
+	##count = (##yy-1)*365+(##yy-1)/4-(##yy-1)/100+(##yy-1)/400;
+	while( 1 ){
+		if( (!(##yy%4)) && (##yy%100||(!(##yy%400))) ) ##u = 1;
+		else ##u = 0;
+		if( ##date - ##count - 365 - ##u <= 0 ) break;
+		##yy = ##yy + 1;
+		##count = ##count + 365 + ##u;
+	}
+	##mm = 1;
+	while( ##mm <= 12 ){
+		if( ##u && ##mm == 2 ) ##dd = 29;
+		else ##dd = #MON[##mm];
+		if( ##date - ##count - ##dd <= 0 ) break;
+		##mm = ##mm + 1;
+	}
+	##count = ##count + #MON[##mm-1];
+	##dd = 1;
+	while( ##dd <= 31 ){
+		if( ##date - ##count - ##dd == 0 ) break;
+		##dd = ##dd + 1;
+	}
+
+	return	str(##yy) + "/" + 
+			rightstr("0"+str(##mm),2) + "/" + 
+			rightstr("0"+str(##dd),2) + 
+			"(" + midstr("日月火水木金土",(##date%7)*2,2) + ")";
+
+#end_of_routine
+
+
+_common_datetoday:
+	if( !#DEFINED ){
+		#MON[0] = 0;
+		##a = 1;
+		while( ##a < 12 ){
+			if( ##a==2 ) ##i = 28;
+			else if( ##a==4 || ##a==6 || ##a==9 || ##a==11 ) ##i = 30;
+			else ##i = 31;
+			#MON[##a] = #MON[##a-1] + ##i;
+			##a = ##a + 1;
+		}
+		#DEFINED = 1;
+	}
+	##y = val( leftstr($$1,4) );
+	##m = val( midstr($$1,5,2) );
+	##date = val( rightstr($$1,2) ) + #MON[##m-1] + 
+		(##y-1)*365 + (##y-1)/4 - (##y-1)/100 + (##y-1)/400;
+	if( (!(##y%4)) && ( ##y%100 || (!(##y%400)) ) && ##m > 2 )
+		##date = ##date + 1;
+	return ##date;
+
+#end_of_routine
+
+
