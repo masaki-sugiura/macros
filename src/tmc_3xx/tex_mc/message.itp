@@ -1,0 +1,91 @@
+;
+;	TeX Module Control with HIDEMARU Macro Ver.%VER_MAJOR%.%VER_MINOR%
+;	メッセージ文字列定義ファイル(message.ini)
+;
+;	対応するバージョン：	Ver.%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE% (以降)
+;
+
+;	_kernel_showmsg サブルーチンで使用する文字列
+[Messages]
+;	秀丸ウィンドウ操作のエラー
+Error_Hidemaru_Open=$0 のオープンに失敗しました。
+Error_Hidemaru_Activate=ウィンドウの切り替えに失敗しました。
+Error_Hidemaru_Close=ウィンドウのクローズに失敗しました。
+
+;	ファイル操作のエラー
+Error_File_notExist=ファイル: $0$n は存在しません。
+
+;	モジュール操作のエラー
+Error_Module_notTeXFile=このファイルは処理できません。$n処理を中止します。
+Error_Module_ExeOpen=モジュール: $0 $nの実行に失敗しました。
+Error_Module_DDEInit=モジュール: $0 $nのDDE初期化に失敗しました。
+Error_Module_StartAdvice=モジュール: $0 $nとのアドバイスループ作成に失敗しました。
+Error_Module_DVIFileCreate=$0 は開けませんでした。$nファイルの作成に失敗した可能性があります。
+Error_Module_UnknownMSG=未知のエラー: $0$nを検出しました。
+Error_Module_InvalidMacroCall=不正なカーネルマクロの呼び出しです。
+Error_Module_DVItoPS=DVI->PS ファイルへの変換に$n失敗しました。
+Error_Module_noFormat=フォーマットファイルが一つもありません。
+Error_Module_GetFileInfo=ファイルの情報を得るのに失敗しました。$n処理を中止します。
+Error_Mudule_GetErrorInfo=エラーファイルの情報の取得に失敗しました。$n　原因：　$0
+
+;	プロジェクト操作のエラー
+Error_Project_notExist=プロジェクトが登録されていません。
+Error_Project_InvalidData=$0$nにはプロジェクト情報がありません。
+Error_Project_noSubFile=このファイルには\input{},\include{}命令がありません。$nプロジェクト登録をしても無意味(^^;です。
+Error_Project_FilenotRegProject=現在の登録プロジェクトの中には$nこのファイルが含まれていません。
+Error_Project_GroupnotExist=グループは登録されていません。
+
+;	設定変更操作のエラー
+Error_Config_DisableChangeReg=先に「動作定義パラメータの変更」で$n「virtex の種類の変更を有効にする」を$nチェックして下さい。
+Error_Config_noFileSelect=$0 の実行ファイルが指定されていません。$n次の中から一つだけ選択して下さい。
+Error_Config_SelectForced=この選択は省略できません。
+
+;	データ・ファイルへの不正アクセスのエラー
+Error_Access_ForbiddenRead=$0 フォルダに $1 がないか読み込みが許可されていません。$nアクセス権について管理者に相談して下さい。
+Error_Access_ForbiddenWrite=$0 フォルダの $1 への書き込みが許可されていません。$nアクセス権について管理者に相談して下さい。
+Error_Access_OpenReg=レジストリ：$0$nを開けませんでした。
+
+;	ユーザーへの質問
+Question_WinDviExist=$0 は既に開かれています。$n既存のウィンドウを再利用しますか？
+Question_Inst_SkipInstall=$0 のインストールをスキップしますか？
+
+;	メッセージ
+Message_Version=TeX Module Control with HIDEMARU MACRO Ver.$0$nCopyright (C) 1995-2002, M. Sugiura (sugiura@ceres.dti.ne.jp)
+Message_Inst_StartInstall=$0 のためのインストール作業を実行します。
+
+;	ダイアログ文字列
+[DialogMessages]
+;	TeX ware 設定変更ダイアログ
+EnvConfig=フォルダ名の変更
+Directory_0=TeXモジュールのフォルダ名
+Directory_1=フォーマットのフォルダ名
+FileName_0=実行ファイルのファイル名
+ParamConfig=パラメータの設定変更
+QuitTeXTitle=bwpvtex の待機状態
+QuitTeX_0=いちいち終了
+QuitTeX_1=アイコン化して待機
+QuitTeX_2=そのまま待機
+EnableChangeReg=virtex の種類の設定を有効にする
+TeXTypeTitle=virtex の種類の設定
+TeXTypeMessage=使用する TeX の種類を番号で記入して下さい
+TeXSize=VirTeXのサイズの変更
+TeXSizeMessage=BigTeX を使う物にチェックして下さい
+FormatConfig=フォーマットメニューの設定
+
+;	DVI ware 設定変更ダイアログ
+TitleBarString=WinDviの種類
+Reopen=開き直しの際の"[Reopen]"命令の使用の許可
+SourceSpecials=開く際の source specials の機能の使用の許可
+
+;	MakeIndex ware 設定変更ダイアログ
+MkIdx_Num_0=文字順の並び替え
+MkIdx_Num_1=「ページ範囲で出力」の禁止
+MkIdx_Num_2=半角空白の圧縮
+MkIdx_Num_3=「あかさたな…」形式の出力
+MkIdx_Num_4=辞書無登録漢字の強制出力
+MkIdx_Str_0=スタイルファイル
+MkIdx_Str_1=出力先ファイル
+MkIdx_Str_2=辞書ファイル
+MkIdx_Str_3=エラーログファイル
+MkIdx_Str_4=開始ページ指定
+

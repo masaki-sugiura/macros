@@ -1,0 +1,21 @@
+
+  [Interface]               [Kernel]                  [Driver]
+
+  tmc_main.mac  <---+--->   prj_cfg .mac
+    ||||            +--->   prj_comp.mac
+    ||||            +--->   sub_comp.mac
+    ||||
+    |||+-[Compile etc.]->   tmc_krnl.mac  <---+--->   virtex  .mac
+    |||                                       +--->   preview .mac
+    |||                                       +--->   makeidx .mac
+    |||                                       +--->   bibtex  .mac
+    |||
+    ||+--[Configure]---->   tmc_cfg.mac   <---+--->   t_config.mac
+    ||                                        +--->   d_config.mac
+    ||                                        +--->   m_config.mac
+    ||                                        +--->   b_config.mac
+    ||
+    |+---[Install]------>   tmc_inst.mac  <------->   install .mac
+    |
+    +----[Update]------->   update  .mac  <------->   update  .mac
+

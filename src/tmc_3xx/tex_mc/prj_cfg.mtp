@@ -1,0 +1,414 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT (PROJECT)
+//	PLATFORM			INDEPENDENT
+//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+$REG_K_PROJECT	=	"ProjectInfo";	//	プロジェクト登録サブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Macro Config Information
+call _kernel_getdatastr $REG_K_MACROCONFIG, "HmOpenOption";
+$OPTIONS  = $$return;
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_PROJECT	=	"CurrentProjectInfo";	//	処理するファイルの情報
+$DYN_PDATA	=	"Project_Data";
+
+$CUR_DIR = getinistr($DYNINI, $DYN_PROJECT, "ProjectDir");
+$CUR_FILE = getinistr($DYNINI, $DYN_PROJECT, "FileName");
+
+$REG_ENUM[0] = "ProjectDataFile";
+$REG_ENUM[1] = "ProjectDir";
+call _kernel_getenumdatastr $REG_K_PROJECT, 2;
+$PRJINI = $REG_VALUE[0];
+$PROJECTDIR = $REG_VALUE[1];
+
+$TOOLDIR	= $MACRODIR + "\\tools";
+$LFNCMD		= "\"" + $TOOLDIR + "\\getlfn.exe\" ";	//	空白ＯＫ
+$LFNINI		= $TOOLDIR + "\\getlfn.ini";
+
+//	Main Routine
+main:
+	//	Project Data File Validity Check
+	if ($PRJINI != "") {
+		if (existfile($PRJINI)) {
+			$PRJNAME = getinistr($PRJINI, $DYN_PDATA, "ProjectName");
+			if ($PRJNAME != "") goto _menu;
+			else {
+				$MSGARG[0] = $PRJINI;
+				call _kernel_showmsg 0, "Error_Project_InvalidData";
+			}
+		}
+		call _local_regproject "", "";
+	}
+
+	//	Start Menu
+	_menu:
+	if ($PRJINI == "") $PRJNAME = "(NO PROJECT)";
+	$ACCEL_KEY_PRJ = "NRD|CPG";
+	menu	"(&N)\t新規プロジェクトの作成",
+			"(&R)\tプロジェクトの登録(現在は" + $PRJNAME + ")",
+			"(&D)\tプロジェクト登録の削除",
+			"\t------------------------------------------",
+			"(&C)\tプロジェクトの設定変更",
+			"(&P)\t親ファイルを開く",
+			"(&G)\t子ファイルへの GREP 実行";
+	if (!result) call _local_exit 0;
+	$$k = midstr($ACCEL_KEY_PRJ, result - 1, 1);
+	if ($$k == "N") {
+		$$prj_name = input("プロジェクト名を入力して下さい", "NEW PROJECT");
+		if ((!result) || $$prj_name == "") goto main;
+		call _local_makeprjdatafile $CUR_DIR, $CUR_FILE, $$prj_name;
+		if (##return) call _local_regproject $PRJINI, $PROJECTDIR;
+	} else if ($$k == "R") {
+		call _common_getnoextfilename $CUR_FILE;
+		$$new_prj = $CUR_DIR + "\\" + $$return + ".prj";
+		$$new_prj = input("プロジェクトデータファイル名を\n" + 
+						  "(フルパスで)入力して下さい", $$new_prj);
+		if ((!result) || $$new_prj == "") goto main;
+		if (!existfile($$new_prj)) {
+			$MSGARG[0] = $$new_prj;
+			call _kernel_showmsg 0, "Error_File_notExist";
+			goto main;
+		}
+		$$new_name = getinistr($$new_prj, $DYN_PDATA, "ProjectName");
+		if ($$new_name == "") {
+			call _kernel_showmsg 0, "Error_Project_notExist";
+			goto main;
+		}
+		$PRJNAME = $$new_name;
+		call _kernel_runapp $LFNCMD + "\"" + $$new_prj + "\"";
+		if (!##return) call _local_exit 1;
+		else {
+			$$new_prj = getinistr($LFNINI, "Result", "filename");
+			if ($$new_prj == "") {
+				$MSGARG[0] = $TOOLDIR;
+				$MSGARG[1] = "getlfn.ini";
+				call _kernel_showmsg 0, "Error_Access_ForbiddenRead";
+				call _local_exit 1;
+			}
+			call _local_regproject $$new_prj,
+				getinistr($LFNINI, "Result", "directory");
+		}
+	} else if ($$k == "D") {
+		call _local_regproject "", "";
+	} else if ($$k == "|") {
+		call _local_easteregg;
+	} else {
+		//	プロジェクトデータが正しいかどうかのチェック
+		if (getinistr($PRJINI, $DYN_PDATA, "ProjectName") == "") {
+			call _kernel_showmsg 0, "Error_Project_notExist";
+			call _local_regproject "", "";
+		}
+		if ($$k == "C") {
+			call _local_projectconfig;
+		} else if ($$k == "G") {
+			call _local_grepproject;
+			if (##return >= 0) call _local_exit 1;
+		} else if ($$k == "P") {
+			$PRJ_PAR = $PROJECTDIR + "\\" + 
+				getinistr($PRJINI, $DYN_PDATA, "Project_Parent");
+			if (!existfile($PRJ_PAR)) {
+				call _kernel_showmsg 0, "Error_File_notExist";
+				goto main;
+			} else if (findhidemaru($PRJ_PAR) != -1) {
+				setactivehidemaru findhidemaru($PRJ_PAR);
+			} else {
+				openfile "\"" + $PRJ_PAR + "\"";	//	空白ＯＫ
+			}
+			call _local_exit 1;
+		}
+	}
+	goto main;
+
+//	End of Main
+
+_local_regproject:
+	$REG_ENUM[0] = "ProjectDataFile";
+	$REG_ENUM[1] = "ProjectDir";
+	$REG_VALUE[0] = $$1;
+	$REG_VALUE[1] = $$2;
+	call _kernel_writeenumdatastr $REG_K_PROJECT, 2;
+	if ($PRJINI != $$1) $PRJINI = $$1;
+	if ($PROJECTDIR != $$2) $PROJECTDIR = $$2;
+	return;
+
+_local_makeprjdatafile:
+	$$prj_par = $$1 + "\\" + $$2;
+
+	//	Project 親ファイルを開いてincludeファイル名を取得
+	title "SEARCHING INPUT/INCLUDE FILES : " + $$prj_par;
+	##hwnd_owner = hidemaruhandle(0);
+	##close = 0;
+	if ($$prj_par != $CUR_DIR + "\\" + $CUR_FILE) {
+		##hwnd_par = findhidemaru($$prj_par); // hidemaruhandle(-1) != 0 ？
+		if (##hwnd_par < 0) {
+			##close = 1;
+			call _kernel_openhm $$prj_par;
+			if (!##return) return 0;
+			##hwnd_par = ##return;
+		} else {
+			##hwnd_par = hidemaruhandle(##hwnd_par);
+			call _kernel_activatehm ##hwnd_par;
+		}
+	} else {
+		##hwnd_par = ##hwnd_owner;
+	}
+	##cur_x = x;
+	##cur_y = y;
+
+	disabledraw;
+	disableinvert;
+	$$s_buf = searchbuffer; ##s_opt = searchoption;
+	setsearch $$s_buf, 0;
+	gofiletop;
+	$$all = "";
+	##sf_num = 0;
+	while (1) {
+		searchdown "\\\\in(put|clude)[^a-zA-Z0-9_]", regular;
+		if (!result) break;
+		wordrightsalnen;
+		wordright;
+		##x = x; ##y = y;
+		searchdown "[\\n\\}]", regular;
+		$$sf[##sf_num] = gettext(##x, ##y, x, y);
+		$$all = $$all + $$sf[##sf_num] + "|";
+		##sf_num = ##sf_num + 1;
+	}
+	setsearch $$s_buf, ##s_opt;
+	if (!##close) {
+		moveto ##cur_x, ##cur_y;
+		call _kernel_activatehm ##hwnd_owner;
+	} else {
+		call _kernel_activatehm ##hwnd_owner;
+		call _kernel_closehm ##hwnd_par;
+	}
+	title 0;
+
+	if (!##sf_num) {
+		call _kernel_showmsg 0, "Error_Project_noSubfile";
+		return 0;
+	}
+
+	//	Projectデータをiniファイルへ登録
+	call _common_getnoextfilename $$2;
+	$PRJINI = $$1 + "\\" + $$return + ".prj";
+	$PROJECTDIR = $$1;
+
+	title "CREATING DATABASE : PROJECT";
+	writeininum $PRJINI, $DYN_PDATA, "CreatorMacro_MajorVersion", 3;
+	writeinistr $PRJINI, $DYN_PDATA, "Project_Parent", $$2;
+	writeinistr $PRJINI, $DYN_PDATA, "ProjectName", $$3;
+	writeinistr $PRJINI, $DYN_PDATA, "Project_All", $$all;
+	writeininum $PRJINI, $DYN_PDATA, "SubFileNum", ##sf_num;
+	call _kernel_runms;
+	if (!##return) return 0;
+	##a = 0;
+	while (##a < ##sf_num) {
+		$$ts = dderequest("timecountof " + 
+						  $PROJECTDIR + "\\" + $$sf[##a] + ".tex");
+		writeinistr $PRJINI, $DYN_PDATA, "Project_Sub_" + str(##a),
+					$$sf[##a] + "|" + $$ts;
+		##a = ##a + 1;
+	}
+	call _kernel_exitms;
+	title 0;
+	return 1;
+
+_local_projectconfig:
+	menu	"(&R)\tプロジェクトデータの再構築",
+			"(&H)\t常に読込むファイルの指定",
+			"(&U)\tユーザー指定グループの設定";
+	if (!result) return 0;
+	else if (result == 1) {
+		call _local_makeprjdatafile $PROJECTDIR,
+				getinistr($PRJINI, $DYN_PDATA, "Project_Parent"),
+				getinistr($PRJINI, $DYN_PDATA, "ProjectName");
+		if (!##return) goto _local_projectconfig;
+	} else if (result == 2) {
+		call _project_selectfile "常に読み込むファイルの指定",
+				getinistr($PRJINI, $DYN_PDATA, "Project_Header");
+		if ($$return == "!") goto _local_projectconfig;
+		writeinistr $PRJINI, $DYN_PDATA, "Project_Header", $$return;
+	} else if (result == 3) {
+		_label_usermenu:
+		menu	"(&N)\t新規グループの作成",
+				"(&C)\t既存グループの変更",
+				"(&D)\tグループの登録削除";
+		if (result == 0) {
+			goto _local_projectconfig;
+		} else if (result == 1) {
+			call _project_selectfile "ユーザー指定グループの設定", "";
+			if ($$return == "!") goto _label_usermenu;
+			call _local_creategroup $$return;
+			if (!##return) return 0;
+		} else if (result == 2) {
+			call _project_groupmenu;
+			if (##return == -1) goto _label_usermenu;
+			$$group = str(##return);
+			call _project_selectfile "ユーザー指定グループの設定",
+				getinistr($PRJINI, "User_Project", "UserGroup_" + $$group);
+			if ($$return == "!") goto _label_usermenu;
+			writeinistr $PRJINI, "User_Project", "UserGroup_" + $$group,
+						$$return;
+		} else if (result == 3) {
+			call _project_groupmenu;
+			if (##return == -1) goto _label_usermenu;
+			call _local_deletegroup ##return;
+			if (!##return) return 0;
+		}
+	}
+	return 1;
+
+_local_creategroup:
+	$$g_name = input("グループの名前を入力して下さい", "New Group Name");
+	if ((!result) || $$g_name == "") return 0;
+	##g_num = getininum($PRJINI, "User_Project", "UserGroup_Num");
+	writeinistr $PRJINI, "User_Project", "UserGroupName_" + str(##g_num),
+				$$g_name;
+	writeinistr $PRJINI, "User_Project", "UserGroup_" + str(##g_num), $$1;
+	writeininum $PRJINI, "User_Project", "UserGroup_Num", ##g_num + 1;
+	return 1;
+
+_local_deletegroup:
+	writeinistr $PRJINI, "User_Project", "UserGroup_" + str(##1), 0;
+	writeinistr $PRJINI, "User_Project", "UserGroupName_" + str(##1), 0;
+	##g_num = getininum($PRJINI, "User_Project", "UserGroup_Num");
+	##a = ##1;
+	while (##a < ##g_num) {
+		writeinistr $PRJINI, "User_Project", "UserGroup_" + str(##a),
+			getinistr($PRJINI, "User_Project", "UserGroup_" + str(##a + 1));
+		writeinistr $PRJINI, "User_Project", "UserGroupName_" + str(##a),
+			getinistr($PRJINI, "User_Project",
+					  "UserGroupName_" + str(##a + 1));
+		##a = ##a + 1;
+	}
+	writeininum $PRJINI, "User_Project", "UserGroup_Num", ##g_num - 1;
+	return 1;
+
+_local_grepproject:
+	call _project_selectfile "GREP をかけるファイルの指定",
+				getinistr($PRJINI, $DYN_PDATA, "Project_All");
+	if ($$return == "!") return -1;
+	$$f = $$return;
+	if (rightstr($$f, 1) != "|") $$f = $$f + "|";
+	##subdir = 0;
+	$$g_files = "";
+	##p = 0;
+	##l = strlen($$f);
+	while (##p < ##l) {
+		##s = strstr(midstr($$f, ##p, ##l), "|");
+		if (##s <= 0) break;
+		$$sf = leftstr(midstr($$f, ##p, ##l), ##s);
+		if (strstr($$sf, "\\") + strstr($$sf, "/") + 2) {
+			// \ または / が $$sf にあった場合
+			##subdir = 1;
+		} else {
+			$$g_files = $$g_files + $$sf + ".tex;";
+		}
+		##p = ##p + ##s + 1;
+	}
+	if ($$g_files == "") return -1;
+	if (##subdir) {
+		question "サブフォルダにある子ファイルが指定されている場合、\n" + 
+				 "親ファイルのあるフォルダ以下全ての TeX ファイルに\n" + 
+				 "GREP をかけることになります。それでもよろしいですか？";
+		if (!result) return -1;
+		$$g_files = "*.tex";
+	}
+
+	call _kernel_runms;
+	if (!##return) return -1;
+	title "CREATING DIALOG";
+	ddepoke "newdialog", "60,GREP の設定";
+	ddepoke "newcontrol", "text,,検索する文字列(&S):";
+	ddepoke "part", "20";
+	ddepoke "newcontrol", "edit,S_STR," + searchbuffer;
+	ddepoke "newcontrol", "check,REGULAR,正規表現(&R)";
+	if (searchoption & 16) ddepoke "default", "1";
+	ddepoke "newcontrol", "check,SUBDIR,サブフォルダも検索(&U)";
+	if (##subdir) ddepoke "default", "1";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if ($$return == "0") {
+		call _kernel_exitms;
+		return -1;
+	}
+
+	$$s_str = dderequest("getstring S_STR");
+	##regular = 16 * val(dderequest("getstate REGULAR"));
+	##subdir = val(dderequest("getstate SUBDIR"));
+	call _kernel_exitms;
+	if ($$s_str == "") return -1;
+	setsearch $$s_str, searchoption | ##regular;
+
+	if (##regular && ##subdir) {
+		grep $$s_str, $$g_files, $PROJECTDIR, regular, subdir;
+	} else if (##regular) {
+		grep $$s_str, $$g_files, $PROJECTDIR, regular;
+	} else if (##subdir) {
+		grep $$s_str, $$g_files, $PROJECTDIR, subdir;
+	} else {
+		grep $$s_str, $$g_files, $PROJECTDIR;
+	}
+	return result;
+
+_local_exit:
+	call _kernel_write_execcmd ##1;
+	endmacro;
+
+_local_easteregg:
+	$$msg = "これはセパレータなのでクリックしても何も起こりません(^^;。";
+	if ($PRJINI == "") {
+		message $$msg;
+		return;
+	}
+	question $$msg;
+	if (result) return;
+	question "本当ですってば(^^;!!";
+	if (result) return;
+	question "…しょうがないですね(^^;。\n" + 
+			"では究極の隠しコマンド(^^;を実行します。\n" + 
+			"あまりパソコンに詳しくない方はここで「いいえ」を\n" + 
+			"選択することをお勧めします…。";
+	if (!result) return;
+	##a = 5;
+	while (##a) {
+		beep;
+		title	"「PC 爆破ウィルス」作動まであと… " + 
+				midstr("１２３４５", (##a - 1) * 2, 2) + " 秒です";
+		##t = tickcount + 1000;
+		while (tickcount < ##t) {;}
+		##a = ##a - 1;
+	}
+	beep;
+	title 0;
+	message "どっか～ん！！…って、そんなこと\n" + 
+			"できるわけないですよね(^^;";
+	return;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

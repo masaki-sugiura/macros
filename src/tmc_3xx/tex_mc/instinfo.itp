@@ -1,0 +1,34 @@
+;
+;	TeX Module Control with HIDEMARU Macro Ver.%VER_MAJOR%.%VER_MINOR%
+;	インストール情報定義ファイル
+;
+;	＊注意＊
+;	このファイルの内容をむやみに変更しないで下さい。
+;	変更が必要な場合は tex_mc\doc サブフォルダにある tmc_tech.txt を
+;	参照して下さい。
+;
+
+;	マクロのバージョン情報
+[Version]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+Reg_Version=%VER_MINOR%
+
+;	基本設定と必要なファイルの定義
+[MacroBase]
+HmOpenOption=/h
+EnableControlExt=.tex.ltx.dtx.texi
+SysDirs=|.|..|tools|docs|
+
+[Files]
+FileNum=10
+FILE_0 =\tmc_krnl.mac
+FILE_1 =\prj_cfg.mac
+FILE_2 =\prj_comp.mac
+FILE_3 =\sub_comp.mac
+FILE_4 =\tmc_cfg.mac
+FILE_5 =\update.mac
+FILE_6 =\message.ini
+FILE_7 =\tools\getlfn.exe
+FILE_8 =\tools\tmcunins.exe
+FILE_9 =\tools\scanfile.exe
+

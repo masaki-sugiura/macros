@@ -1,0 +1,173 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				MODULE CONTROL MICRO KERNEL
+//	PLATFORM			dvips(k),(j)dvi2(k)ps,Aladdin GSview for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは dvips(k), (j)dvi2(k)ps と gsview32 専用です。				//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$DVIWARE	=	"DVI_PS";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Definition of return code from module control micro-kernel
+//		マクロからの戻り値の定義
+//
+#RETURN_SUCCESS	=	  0;	//	正常にプレビューできた
+#RETURN_FAILED	=	  1;	//	DVIファイルがなかった
+#RETURN_ERROR	=	255;	//	異常終了
+
+//	Base registry path
+//		レジストリのパス名の定義
+//
+$REG_ROOT = "Sugi_Macro\\TeXModuleControl";	//	マクロのルートキー
+$REG_K_PI_BASE = "Platform\\" + $DVIWARE + "\\DVIware";
+	//	プラットフォームのサブキー
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Dynamic Data Information
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_MC_ACTION  =   "Action";
+$DYN_MC_RETURN	=	"return_preview";
+$DYN_PROJECT	=	"CurrentProjectInfo";	//	処理するファイルの情報
+
+//	Current Project Information
+//		コンパイル対象ファイルの情報
+//
+$FILENAME	=	getinistr($DYNINI,$DYN_PROJECT,"FileName");
+$SHORTNAME	=	getinistr($DYNINI,$DYN_PROJECT,"ShortName");
+$PROJECTDIR	=	getinistr($DYNINI,$DYN_PROJECT,"ProjectDir");
+$OUTPUTEXT	=	getinistr($DYNINI,$DYN_PROJECT,"OutputExt");
+
+call _kernel_getdatanum $REG_K_MACROCONFIG + "\\DVIware", "OpenType";
+#OPENTYPE = ##return;
+
+//----------------------------------//
+//	Platform dependent codes		//
+//----------------------------------//
+
+$REG_ENUM[0]	=	"BaseDir_DVIPS";
+$REG_ENUM[1]	=	"CmdArgv_DVIPS";
+$REG_ENUM[2]	=	"CmdOpt_DVIPS";
+$REG_ENUM[3]	=	"BaseDir_PSVIEW";
+$REG_ENUM[4]	=	"CmdArgv_PSVIEW";
+$REG_ENUM[5]	=	"CmdOpt_PSVIEW";
+$REG_ENUM[6]	=	"TitleBarString";
+call _kernel_getenumdatastr $REG_K_PI_BASE, 7;
+$DVIPSDIR		=	$REG_VALUE[0];
+$DVIPSCMD		=	$REG_VALUE[1];
+$DVIPSOPT		=	$REG_VALUE[2];
+$PSVIEWDIR		=	$REG_VALUE[3];
+$PSVIEWCMD		=	$REG_VALUE[4];
+$PSVIEWOPT		=	$REG_VALUE[5];
+$TITLEBARSTR	=	$REG_VALUE[6];
+
+main:
+	#ACTION = getininum($DYNINI, $DYN_MODULECMD, $DYN_MC_ACTION);
+	if (#ACTION == 0) {
+		call _local_preview;
+		##ret = ##return;
+	} else if (#ACTION == 1) {
+		call _local_close;
+		##ret = ##return;
+	}
+	writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, ##ret;
+	endmacro;
+
+_local_preview:
+	##ret = #RETURN_SUCCESS;
+	if ($OUTPUTEXT == ".dvi") {
+		$OUTPUTEXT = ".ps";
+		call _local_dvips;
+		if (##return != #RETURN_SUCCESS) return ##return;
+	}
+	call _local_gsview;
+	return ##return;
+
+_local_close:
+	call _local_replacestring $TITLEBARSTR;
+	##hwnd_ps = findwindow($$return);
+	if (##hwnd_ps && (#OPENTYPE == 1))
+		##s = sendmessage(##hwnd_ps, 0x0112, 0xF060, 0);
+	return #RETURN_SUCCESS;
+
+//EndofPreview_Main
+
+_local_dvips:
+	$DVIFILE = $PROJECTDIR + "\\" + $SHORTNAME + ".dvi";
+	if (!existfile($DVIFILE)) {
+		$MSGARG[0] = $DVIFILE;
+		call _kernel_showmsg 0, "Error_File_notExist";
+		return #RETURN_ERROR;
+	}
+
+	call _local_replacestring $DVIPSOPT;
+	$DVIPSOPT = $$return;
+	if (strstr($DVIPSOPT, " -o") == -1) {
+		$DVIPSOPT = "-o " + $PROJECTDIR + "\\" + $SHORTNAME + $OUTPUTEXT
+					+ " " + $DVIPSOPT;
+	}
+	runsync2 "\"" + $DVIPSDIR + "\\" + $DVIPSCMD + "\" " + $DVIPSOPT;
+	if ((!result) || (!existfile($PROJECTDIR + "\\" + $SHORTNAME + ".ps"))) {
+		call _kernel_showmsg 0, "Error_Module_DVItoPS";
+		return #RETURN_ERROR;
+	}
+	return #RETURN_SUCCESS;
+
+_local_gsview:
+	call _local_replacestring $PSVIEWOPT;
+	run "\"" + $PSVIEWDIR + "\\" + $PSVIEWCMD + "\" " + $$return;
+	if (!result) {
+		$MSGARG[0] = $PSVIEWCMD + " " + $$return;
+		call _kernel_showmsg 0, "Error_Module_ExeOpen";
+		return #RETURN_ERROR;
+	}
+	return #RETURN_SUCCESS;
+
+_local_replacestring:
+	$$str = "";
+	while (1) {
+		##s = strstr($$1, "$");
+		if (!(##s + 1)) return $$str + $$1;
+		else {
+			$$s = midstr($$1, ##s + 1, 1);
+			if ($$s == "$") $$ss = "$";
+			else if ($$s == "f") $$ss = $PROJECTDIR;
+			else if ($$s == "t") $$ss = $FILENAME;
+			else if ($$s == "s") $$ss = $SHORTNAME;
+			else if ($$s == "!") $$ss = $SHORTNAME+$OUTPUTEXT;
+			$$str = $$str + leftstr($$1, ##s) + $$ss;
+			$$1 = midstr($$1, ##s + 2, 256);
+		}
+	}
+	//	not reached.
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

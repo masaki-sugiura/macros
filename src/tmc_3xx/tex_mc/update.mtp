@@ -1,0 +1,147 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				UPDATING MANAGEMENT
+//	PLATFORM			INDEPENDENT
+//
+
+//	レジストリキー名
+#REG_VERSION	=	%VER_MINOR%;
+$REG_ROOT	=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_MACROCONFIG	=	"MacroConfig";
+$REG_K_VERSION	=	"VersionInfo";
+$REG_K_PLATFORM	=	"Platform";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	レジストリデータベースのバージョンを取得
+call _kernel_getdatanum "", "Reg_Version";
+#REG_VERSION_OLD = ##return;
+
+//	INI ファイル
+$MSGINI		=	$MACRODIR + "\\message.ini";
+$INSTINI	=	$MACRODIR + "\\instinfo.ini";
+$DYNINI		=	$MACRODIR + "\\dyndata.ini";
+
+//	Main Routine
+main:
+	//	旧バージョンの取得
+	call _kernel_getdatastr $REG_K_VERSION, "MacroVersion";
+	$OLDVERSION	=	$$return;
+	#REVISION_OLD = val(midstr($OLDVERSION,4,2));
+
+	//	新バージョンの取得
+	$NEWVERSION	=	getinistr($INSTINI,"Version","MacroVersion");
+
+	disablebreak;
+	beep;
+	message "マクロのバージョンが変更されました。\n" + 
+			"(Ver." + $OLDVERSION + " -> Ver." + $NEWVERSION + ")\n" + 
+			"新バージョンに対応するデータの書き換えを実行します。";
+	if (!#REG_VERSION_OLD) {
+		message "Ver.3.0.X からのアップデートは自動的には行われません。\n" + 
+				"アップデートの方法は tmc_user.txt を参照して下さい。";
+		endmacroall;
+	}
+
+	//	マクロ共通の設定の変更
+	if (#REG_VERSION_OLD <= 1) {
+		//	Ver.3.2.0 から「実行待ち」を秒数で指定するように変更
+		call _kernel_getdatanum $REG_K_MACROCONFIG, "TimeWait";
+		if (##return < 100) ##time = 2;
+		else if (##return > 500) ##time = 5;
+		else ##time = ##return / 100;
+		call _kernel_writedatanum $REG_K_MACROCONFIG, "TimeWait", ##time;
+	}
+
+	if (#REG_VERSION_OLD < 4 || #REVISION_OLD < 1) {
+		//	Ver.3.4.1 から出力ファイルタイプを動的に変更できるように変更
+		question "Ver.3.4.1 から出力ファイルタイプ毎に\n" + 
+				 "DVIware を設定できるようにしました。\n" + 
+				 "\n" + 
+				 "設定を自動で行いますか？";
+		$DVIWARE_DVI = "";
+		$DVIWARE_PS  = "";
+		$DVIWARE_PDF = "";
+		if (result) {
+			$REG_ENUM[0] = "InstalledPlatform";
+			$REG_ENUM[1] = "DVIware_Mask";
+			call _kernel_getenumdatanum $REG_K_PLATFORM, 2;
+			#DVIWARE = #REG_VALUE[0] & #REG_VALUE[1];
+			##f = 1;
+			##a = 0;
+			while (##a < 32) {
+				if (##f & #DVIWARE) {
+					call _kernel_getdatastr $REG_K_PLATFORM, str(##f);
+					$$dviware = $$return;
+					if ($$dviware == "ADOBE_AR") {
+						$DVIWARE_PDF = "ADOBE_AR";
+					} else if ($$dviware == "DVI_PS") {
+						$DVIWARE_PS = "DVI_PS";
+						if ($DVIWARE_PDF == "") $DVIWARE_PDF = "DVI_PS";
+						if ($DVIWARE_DVI == "") $DVIWARE_DVI = "DVI_PS";
+					} else if ($$dviware == "DVIOUT") {
+						$DVIWARE_DVI = $$dviware;
+					} else {
+						if ($DVIWARE_DVI == "") $DVIWARE_DVI = $$dviware;
+					}
+				}
+				##f = ##f * 2;
+				##a = ##a + 1;
+			}
+			question "以下の設定でよろしいですか？\n" + 
+					 " DVI ファイル： " + $DVIWARE_DVI + "\n" + 
+					 " PS  ファイル： " + $DVIWARE_PS  + "\n" + 
+					 " PDF ファイル： " + $DVIWARE_PDF;
+		}
+		if (!result) {
+			message "DVIware の設定についてはメインメニューの\n" + 
+					"「各種設定の変更」→「使用するパッケージの変更」の\n" + 
+					"「DVIware の変更」から行って下さい。";
+			$DVIWARE_DVI = "";
+			$DVIWARE_PS  = "";
+			$DVIWARE_PDF = "";
+		}
+		call _kernel_getdatastr $REG_K_MACROCONFIG, "DVIware_Type";
+		$$cur_type = $$return;
+		##outtype = 0;
+		if (#REG_VERSION_OLD >= 4 && #REVISION_OLD == 0) {
+			call _kernel_getdatanum $REG_K_MACROCONFIG, "OutputType";
+			##outtype = ##return;
+		}
+		$REG_ENUM[0] = "DVIware_DVI";
+		$REG_ENUM[1] = "DVIware_PS";
+		$REG_ENUM[2] = "DVIware_PDF";
+		$REG_VALUE[0] = $DVIWARE_DVI;
+		$REG_VALUE[1] = $DVIWARE_PS;
+		$REG_VALUE[2] = $DVIWARE_PDF;
+		$REG_VALUE[##outtype] = $$cur_type;
+		call _kernel_writeenumdatastr $REG_K_MACROCONFIG, 3;
+		// デフォルトに戻す
+		call _kernel_writedatanum $REG_K_MACROCONFIG, "OutputType", 0;
+		// メニューに追加
+		call _kernel_getdatastr $REG_K_MACROCONFIG, "MenuSequence_Main";
+		call _kernel_writedatastr $REG_K_MACROCONFIG, "MenuSequence_Main",
+			$$return + "|O";
+	}
+
+
+	//	マクロのバージョン情報の更新
+	if (#REG_VERSION_OLD != #REG_VERSION) {
+		call _kernel_writedatanum "", "Reg_Version", #REG_VERSION;
+	}
+	call _kernel_writedatastr $REG_K_VERSION, "MacroVersion", $NEWVERSION;
+
+	endmacro;
+
+//	End of Main
+

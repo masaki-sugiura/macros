@@ -1,0 +1,92 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				INSTALLATION MANAGEMENT
+//	PLATFORM			DVIOUT for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは DVIOUT for Windows 専用です。								//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"DVIOUT";
+
+//	レジストリキーの定義
+#REG_VERSION			=	%VER_MINOR%;
+$REG_ROOT				=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION			=	"VersionInfo";
+$REG_K_MACROCONFIG		=	"MacroConfig";
+$REG_K_PLATFORM			=	"Platform\\" + $PNAME;
+$REG_K_P_TEXWARE		=	$REG_K_PLATFORM + "\\TeXware";
+$REG_K_P_DVIWARE		=	$REG_K_PLATFORM + "\\DVIware";
+$REG_K_FORMAT			=	"FormatMenu";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	文字列定義Iniファイル
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	補助ツールのフォルダ名及びツール起動時のコマンドライン
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$LFNCMD		=	"\"" + $TOOLDIR + "\\getlfn.exe\" ";
+$LFNINI		=	$TOOLDIR + "\\getlfn.ini";
+$MKFMTDBCMD	=	"\"" + $TOOLDIR + "\\mkfmtdb.exe\" ";
+
+
+main:
+	call _kernel_getdatastr $REG_K_PLATFORM, "PlatformName";
+	$MSGARG[0] = $$return;
+	call _kernel_getdatanum $REG_K_PLATFORM, "InstalledWareFlag";
+	#INST_SP_PTYPE = ##return;
+
+	if( #INST_SP_PTYPE&2 ) call _install_exitinstall 0;
+
+	$TEXMF = getenv("TEXMF");
+	if( strstr($TEXMF,"ptex") != -1 ) $BASEDIR=leftstr($TEXMF,2)+"\\ptex\\bin";
+	else if( $TEXMF != "" ) $BASEDIR = leftstr($TEXMF,2) + "\\usr\\local\\bin";
+	else $BASEDIR = leftstr(hidemarudir,3) + "dviout";
+	if( !existfile($BASEDIR+"\\dviout.exe") ){
+		_input_folder:
+		call _install_inputfoldername $MSGARG[0], $BASEDIR;
+		if( $$return != "" ) $BASEDIR = $$return;
+		else {
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) call _install_exitinstall 0;
+			else goto _input_folder;
+		}
+	}
+	call _install_getlongfilename $BASEDIR + "\\foo.txt";
+	$BASEDIR = $DIRECTORY;
+
+	title $MSGARG[0] + " 構成情報の書き込み中...";
+	$REG_ENUM[0] = "BaseDir";
+	$REG_ENUM[1] = "CmdArgv";
+	$REG_ENUM[2] = "TitleBarString";
+	$REG_VALUE[0] = $BASEDIR;
+	$REG_VALUE[1] = "dviout.exe";
+	$REG_VALUE[2] = "dviout";
+	call _kernel_writeenumdatastr $REG_K_P_DVIWARE, 3;
+	#INST_SP_PTYPE = #INST_SP_PTYPE | 2;
+	title 0;
+	call _install_exitinstall 0;
+	endmacro;	//	not reached.
+
+//	End of Main
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

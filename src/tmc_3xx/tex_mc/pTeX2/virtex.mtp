@@ -1,0 +1,174 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				MODULE CONTROL MICRO KERNEL
+//	PLATFORM			ASCII-pTeX 2.1.X (Console)
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは ASCII-pTeX 専用です。										//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$TEXWARE	=	"pTeX2";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Definition of return code from module control micro-kernel
+//		マクロからの戻り値の定義
+//
+#RETURN_COMPLETE	=	  0;		//	コンパイルが正常に終了
+#RETURN_CONTINUE	=	  1;		//	リコンパイルが必要
+#RETURN_EDIT		=	  2;		//	"e"でコンパイルを中止した。
+#RETURN_STOP		=	  4;		//	"x"でコンパイルを中止した
+#RETURN_ERROR		=	255;		//	コンパイル実行エラー
+
+//	Definition of return code from err_hook.exe
+#ERROR_ARG_FEW			=	 2;		//	引数がなかった
+#ERROR_ARG_MANY			=	 4;		//	引数が多すぎた
+#ERROR_ENV_NOTFOUND		=	 8;		//	環境変数が見つからなかった
+#ERROR_ENV_NODEF_NAME	=	16;		//	ファイル名が見つからなかった
+#ERROR_ENV_NODEF_LINE	=	32;		//	エラー行が見つからなかった
+
+//	Base registry path
+//		レジストリのパス名の定義
+//
+$REG_ROOT = "Sugi_Macro\\TeXModuleControl";	//	マクロのルートキー
+$REG_K_PI_BASE = "Platform\\" + $TEXWARE + "\\TeXware";
+	//	プラットフォームのサブキー
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Dynamic Data Information
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_MC_RETURN	=	"return_virtex";	//	モジュールの戻り値
+$DYN_PROJECT	=	"CurrentProjectInfo";
+
+//	Current Project Information
+//		コンパイル対象ファイルの情報
+//
+$FILENAME	=	getinistr($DYNINI,$DYN_PROJECT,"FileName");
+$SHORTNAME	=	getinistr($DYNINI,$DYN_PROJECT,"ShortName");
+$OUTPUTEXT	=	getinistr($DYNINI,$DYN_PROJECT,"OutputExt");
+$PROJECTDIR	=	getinistr($DYNINI,$DYN_PROJECT,"ProjectDir");
+
+call _common_getnoextfilename $FILENAME;
+$FILENAME_NOEXT = $$return;
+
+//	Current Format Information
+//		フォーマットファイルの指定
+//		この ID をどういう意味で使うかはプラットフォームに依存する。
+//
+call _kernel_getdatanum "FormatMenu\\" + $TEXWARE, "CurrentUsedFormat";
+#FORMAT_MENUID = ##return;
+call _kernel_getdatanum "FormatMenu\\" + $TEXWARE, "Num";
+if( ##return <= #FORMAT_MENUID ) #FORMAT_MENUID = 0;
+
+//----------------------------------//
+//	Platform dependent codes		//
+//----------------------------------//
+
+////	Error Hook base path
+$DYN_ERRORHOOK = "Error_Hook";
+$DYN_EH_EXECFLAG	=	"Exec_Flag";
+$DYN_DO_OUT2UNI = "Do_Out2Uni";
+$EXECVIRTEXCMD = "\"" + $MACRODIR + "\\tools\\execvtex.exe\"";
+
+////////	TeXware Information (of ASCII-pTeX)
+call _kernel_getdatastr "FormatMenu\\" + $TEXWARE, str(#FORMAT_MENUID);
+$TEXWARETYPE = leftstr($$return,1);
+$FORMAT = midstr($$return,1,strstr($$return,":")-1);
+$REG_ENUM[0] = "BaseDir";
+$REG_ENUM[1] = "CmdArgv_" + $TEXWARETYPE;
+$REG_ENUM[2] = "Out2Uni";
+$REG_ENUM[3] = "DviPdfm";
+call _kernel_getenumdatastr $REG_K_PI_BASE, 4;
+$TEX_DIR = $REG_VALUE[0];
+$CMDARGV = leftstr($REG_VALUE[1],strstr($REG_VALUE[1],":"));
+$REG_VALUE[1] = midstr($REG_VALUE[1],strstr($REG_VALUE[1],":")+1,255);
+$FMT = leftstr($REG_VALUE[1],strstr($REG_VALUE[1],":"));
+$OPT = midstr($REG_VALUE[1],strstr($REG_VALUE[1],":")+1,255);
+$OUT2UNI = $REG_VALUE[2];
+$DVIPDFM = $REG_VALUE[3];
+call _kernel_getdatanum $REG_K_PI_BASE, "UseDviPdfm";
+#USE_DVIPDFM = ##return;
+
+//	Start Main Routine
+main:
+	call _kernel_runapp $EXECVIRTEXCMD + " \"" + $TEX_DIR + "\\" + $CMDARGV + 
+		"\" \"" + $FMT + $FORMAT + "\" " + $OPT + 
+		" \"" + $PROJECTDIR + "\\" + $FILENAME + "\"";
+	if (!##return)
+		writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, #RETURN_ERROR;
+	##ret = getininum($DYNINI,$DYN_ERRORHOOK,$DYN_EH_EXECFLAG);
+	if (##ret) {
+		$MSGARG[0] = "";
+		if (##ret & #ERROR_ARG_FEW)	$MSGARG[0] = "引数が少ない\n";
+		if (##ret & #ERROR_ARG_MANY)	$MSGARG[0] = "引数が多い\n";
+		if (##ret & #ERROR_ENV_NOTFOUND)
+			$MSGARG[0] = $MSGARG[0] + "環境変数 TEXEDIT が見つからない\n";
+		if (##ret & #ERROR_ENV_NODEF_NAME)
+			$MSGARG[0] = $MSGARG[0] + "エラーファイル名が見つからない\n";
+		if (##ret & #ERROR_ENV_NODEF_LINE)
+			$MSGARG[0] = $MSGARG[0] + "エラー行番号が見つからない\n";
+		call _kernel_showmsg 0, "Error_Mudule_GetErrorInfo";
+		writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, #RETURN_ERROR;
+	} else {
+		// (Ver.3.4.1 以降) 2 以上のときは out2uni, dvipdfm を実行しない
+		##comp_state = getininum($DYNINI, $DYN_MODULECMD, "CompileState");
+		if (##comp_state == 1 && $OUTPUTEXT == ".pdf" && #USE_DVIPDFM) {
+			##ret_val = getininum($DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN);
+			if (##ret_val == #RETURN_COMPLETE) {
+				call _local_do_out2uni;
+				if (##return) {
+					call _kernel_runapp $TEX_DIR + "\\" + $DVIPDFM + " \"" + 
+						$PROJECTDIR + "\\" + $FILENAME_NOEXT + "\"";
+				}
+			}
+		}
+	}
+	writeininum $DYNINI, $DYN_ERRORHOOK, $DYN_EH_EXECFLAG, 0;
+	endmacro;
+
+//	End Main Routine
+
+_local_do_out2uni:
+	if (!existfile($PROJECTDIR + "\\" + $FILENAME_NOEXT + ".out")) {
+//		message $FILENAME_NOEXT + " does not exist";
+		return 1; // do dvipdfm
+	}
+	##do_out2uni = getininum($DYNINI, $DYN_MODULECMD, $DYN_DO_OUT2UNI);
+	if (##do_out2uni) {
+		writeininum $DYNINI, $DYN_MODULECMD, $DYN_DO_OUT2UNI, 0;
+		return 1; // do dvipdfm
+	}
+	call _kernel_runapp $TEX_DIR + "\\" + $OUT2UNI + " \"" + 
+		$PROJECTDIR + "\\" + $FILENAME_NOEXT + "\"";
+	// リコンパイルが必要
+	writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, #RETURN_CONTINUE;
+	writeininum $DYNINI, $DYN_MODULECMD, $DYN_DO_OUT2UNI, 1;
+	return 0; // not yet do dvipdfm
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

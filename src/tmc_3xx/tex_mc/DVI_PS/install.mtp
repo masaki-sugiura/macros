@@ -1,0 +1,155 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				INSTALLATION MANAGEMENT
+//	PLATFORM			dvips(k),(j)dvi2(k)ps,Aladdin GSview for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは dvips(k), (j)dvi2(k)ps と gsview32 専用です。				//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"DVI_PS";
+
+//	レジストリキーの定義
+#REG_VERSION			=	%VER_MINOR%;
+$REG_ROOT				=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION			=	"VersionInfo";
+$REG_K_MACROCONFIG		=	"MacroConfig";
+$REG_K_PLATFORM			=	"Platform\\" + $PNAME;
+$REG_K_P_TEXWARE		=	$REG_K_PLATFORM + "\\TeXware";
+$REG_K_P_DVIWARE		=	$REG_K_PLATFORM + "\\DVIware";
+$REG_K_FORMAT			=	"FormatMenu";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	文字列定義Iniファイル
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	補助ツールのフォルダ名及びツール起動時のコマンドライン
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$LFNCMD		=	"\"" + $TOOLDIR + "\\getlfn.exe\" ";
+$LFNINI		=	$TOOLDIR + "\\getlfn.ini";
+
+
+main:
+	call _kernel_getdatastr $REG_K_PLATFORM, "PlatformName";
+	$SP_PNAME = $$return;
+	call _kernel_getdatanum $REG_K_PLATFORM, "InstalledWareFlag";
+	#INST_SP_PTYPE = ##return;
+
+	if( #INST_SP_PTYPE & 2 ) call _install_exitinstall 0;
+
+	##dvips_num = 5;
+	$$dvips[0] = "dvips";
+	$$dvips[1] = "dvipsk";
+	$$dvips[2] = "dvi2ps";
+	$$dvips[3] = "jdvi2kps";
+	$$dvips[4] = "odvips";
+
+	$TEXMF = getenv("TEXMF");
+	if( strstr($TEXMF,"ptex") != -1 ) $TEXDIR = leftstr($TEXMF,2)+"\\ptex";
+	else if( $TEXMF != "" ) $TEXDIR = leftstr($TEXMF,2) + "\\usr\\local";
+	else $TEXDIR = "c:\\usr\\local";
+	$DVIPSDIR = $TEXDIR + "\\bin";
+	##a = 0;
+	while( ##a < ##dvips_num ){
+		if( existfile($DVIPSDIR+"\\"+$$dvips[##a]+".exe") ) break;
+		##a = ##a + 1;
+	}
+	if( ##a == ##dvips_num ){
+		_input_folder_dvips:
+		call _install_inputfoldername "dvips(k)", $DVIPSDIR;
+		if( $$return != "" ) $DVIPSDIR = $$return;
+		else {
+			$MSGARG[0] = "dvips(k)";
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) call _install_exitinstall 0;
+			else goto _input_folder_dvips;
+		}
+	}
+	call _install_getlongfilename $DVIPSDIR+"\\foo.txt";
+	$REG_VALUE[0] = $DIRECTORY;
+	##a = 0;
+	##m = 0;
+	while( ##a < ##dvips_num ){
+		if( existfile($DIRECTORY+"\\"+$$dvips[##a]+".exe") ){
+			##dvips_id[##m] = ##a;
+			$$dvips_menu[##m] = $$dvips[##a];
+			##m = ##m + 1;
+		}
+		##a = ##a + 1;
+	}
+	if( !##m ) ##dvips_sel = 0;
+	else if( ##m == 1 ) ##dvips_sel = ##dvips_id[0];
+	else {
+		message "複数の dvips-ware が見つかりました。\n" + 
+				"どの dvips を使用するか選択して下さい。";
+		menuarray $$dvips_menu, ##m;
+		if( !result ) ##dvips_sel = 0;
+		else ##dvips_sel = result - 1;
+	}
+	if (##dvips_sel != 2) {
+		$REG_VALUE[1] = $$dvips[##dvips_sel] + ".exe";
+		$REG_VALUE[2] = "\"$f\\$s.dvi\"";
+	} else {
+		message "dvi2ps を使用する場合の注意：\n" + 
+				"このインストールマクロが終了した後に\n" + 
+				"いくつか手動での設定が必要になります。\n" + 
+				"詳細は tmc_inst.txt を参照して下さい。";
+		$REG_VALUE[1] = "tmc_dvi2ps.bat";
+		$REG_VALUE[2] = "\"$f\\$s\"";
+	}
+
+	$PSVIEWDIR = leftstr($DVIPSDIR,3) + "gstools\\gsview";
+	if( !existfile($PSVIEWDIR+"\\gsview32.exe") ){
+		_input_folder_gsview:
+		call _install_inputfoldername "GSView", $PSVIEWDIR;
+		if( $$return != "" ) $PSVIEWDIR = $$return;
+		else {
+			$MSGARG[0] = "GSView";
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) call _install_exitinstall 0;
+			else goto _input_folder_gsview;
+		}
+	}
+	call _install_getlongfilename $PSVIEWDIR+"\\foo.txt";
+	$REG_VALUE[3] = $DIRECTORY;
+	$REG_VALUE[4] = "gsview32.exe";
+	$REG_VALUE[5] = "\"$f\\$!\"";
+	$REG_VALUE[6] = "$! - GSview";
+
+	title $SP_PNAME + " 構成情報の書き込み中...";
+	$REG_ENUM[0] = "BaseDir_DVIPS";
+	$REG_ENUM[1] = "CmdArgv_DVIPS";
+	$REG_ENUM[2] = "CmdOpt_DVIPS";
+	$REG_ENUM[3] = "BaseDir_PSVIEW";
+	$REG_ENUM[4] = "CmdArgv_PSVIEW";
+	$REG_ENUM[5] = "CmdOpt_PSVIEW";
+	$REG_ENUM[6] = "TitleBarString";
+	call _kernel_writeenumdatastr $REG_K_P_DVIWARE, 7;
+	#INST_SP_PTYPE = #INST_SP_PTYPE | 2;
+	title 0;
+
+	call _install_exitinstall 0;
+	endmacro;	//	not reached.
+
+//	End of Main
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

@@ -1,0 +1,668 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				INSTALLATION MANAGEMENT
+//	PLATFORM			INDEPENDENT
+//
+
+////	マクロフォルダの設定
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	インストール情報定義Iniファイル
+$INSTINI = $MACRODIR + "\\instinfo.ini";
+if (!existfile($INSTINI)) {
+	message "インストール情報定義ファイル(instinfo.ini)が見つかりません。";
+	call _local_exitinstall 0;
+}
+
+//	ソフトウェア固有マクロに関する定数
+$SPINI = "instinfo.ini";
+$SYSDIRS = getinistr($INSTINI, "MacroBase", "SysDirs");
+#SP_MAXNUM = 30;
+
+//	バージョン情報の取得
+#REG_VERSION = getininum($INSTINI, "Version", "Reg_Version");
+$VERSION = getinistr($INSTINI, "Version", "MacroVersion");
+
+//	レジストリキーの定義
+$REG_ROOT			=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION		=	"VersionInfo";
+$REG_K_MACROCONFIG	=	"MacroConfig";
+$REG_K_MC_MS		=	"MacroConfig\\MacroServer";
+$REG_K_PLATFORM		=	"Platform";
+$REG_K_FORMAT		=	"FormatMenu";
+
+//	補助ツールのフォルダ名及びツール起動時のコマンドライン
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$LFNCMD		=	"\"" + $TOOLDIR + "\\getlfn.exe\" ";	//	空白ＯＫ
+$LFNINI		=	$TOOLDIR + "\\getlfn.ini";
+$MKFMTDBCMD	=	"\"" + $TOOLDIR + "\\mkfmtdb.exe\" ";	//	空白ＯＫ
+$REMOVECMD	=	"\"" + $TOOLDIR + "\\tmcunins.exe\"";	//	空白ＯＫ
+
+//	文字列定義Iniファイル
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	ソフトウェアの種類の定義
+//
+//		#PTYPE_NUM				:	Number of categories of ***ware
+//		#PTYPE_ID[#PTYPE_NUM]	:	Category ID (bit flag)
+//		$PTYPE_NAME[#PTYPE_NUM]	:	Name of category ("***ware")
+//		$PTYPE_FILE[#PTYPE_NUM]	:	Macro file node name
+//		#PTYPE_ALL[#PTYPE_NUM]	:	Bit sum of #SP_PID[] (defined below)
+//
+#PTYPE_NUM = 4;
+$PTYPE_NAME[0]	=	"TeXware";
+$PTYPE_NAME[1]	=	"DVIware";
+$PTYPE_NAME[2]	=	"MkIdxware";
+$PTYPE_NAME[3]	=	"BibTeXware";
+$PTYPE_FILE[0]	=	"virtex";
+$PTYPE_FILE[1]	=	"preview";
+$PTYPE_FILE[2]	=	"makeidx";
+$PTYPE_FILE[3]	=	"bibtex";
+#PTYPE_ID[0]	=	1;
+#PTYPE_MASK		=	0;
+##a = 1;
+while (##a < #PTYPE_NUM) {
+	#PTYPE_ID[##a] = #PTYPE_ID[##a-1] * 2;
+	#PTYPE_MASK = #PTYPE_MASK | #PTYPE_ID[##a];
+	##a = ##a + 1;
+}
+
+
+//	Main Routine
+main:
+	disablebreak;
+	openreg "CURRENTUSER", "Software\\"+$REG_ROOT;
+	#INSTALL_USER = 1 - result;
+	if (#INSTALL_USER) call _local_new_install;
+	else {
+		closereg;
+		call _local_platform_change;
+	}
+	endmacro;
+
+//	End of main
+
+_local_new_install:
+	//	オープニングメッセージ
+	message	"TeX モジュールコントロール with 秀丸マクロ Ver." + $VERSION + 
+			"\n のインストール作業を開始します";
+
+	//	マクロベースファイルの存在チェック
+	title "ファイルの存在をチェック中...";
+	call _local_checkfiles $INSTINI;
+	if (!##return) call _local_nofile;
+	title 0;
+
+	//	マクロサーバのフォルダの選択
+	question "マクロサーバのフォルダを変更しますか？\n" + 
+			"(デフォルト：" + $TOOLDIR + ")";
+	if (!result) $MS_DIR = $TOOLDIR;
+	else $MS_DIR = "";
+
+	_input_macroserverfolder:
+	if ($MS_DIR == "") {
+		$MS_DIR = input("マクロサーバのフォルダ名を入力して下さい。",$TOOLDIR);
+		if (result && $MS_DIR != "") {
+			call _common_removelastsep $MS_DIR;
+			$MS_DIR = $$return;
+		}
+	}
+	if (!existfile($MS_DIR+"\\macserv.exe")) {
+		question "指定されたフォルダにマクロサーバがありません。\n" + 
+				"(" + $MS_DIR + ")\n" + 
+				"マクロサーバがないとインストールが実行できません。\n" + 
+				"マクロサーバのフォルダ名の入力をやり直しますか？";
+		if (result) goto _input_macroserverfolder;
+		else call _local_exitinstall 0;
+	}
+
+	call _local_detect_supportmacro;
+	if (!##return) {
+		message "ソフトウェア固有のマクロセットが\n" + 
+				"一つも見つかりませんでした。";
+		call _local_exitinstall 0;
+	}
+
+	call _local_create_platformdatabase;
+
+	#OLDPLATFORM = 0;
+	//	インストールするソフトウェアの選択
+	question "インストールされているソフトウェアを自動で検出しますか？\n" + 
+			 "([いいえ]を選ぶとソフトウェアを自分で選択できます。)";
+	if (!result) goto __manual_detect;
+
+__auto_detect:
+	//	見つかったソフトウェアの表示とインストール作業の確認
+	call _local_checkplatform;
+	#FOUNDPLATFORM = ##return;
+	$$msg = "";
+	##a = 0;
+	while (##a < #SP_NUM) {
+		if (#FOUNDPLATFORM & #SP_PID[##a])
+			$$msg = $$msg + " " + $SP_PNAME[##a] + "\n";
+		##a = ##a + 1;
+	}
+	question "以下のソフトウェアが見つかりました。\n\n" + $$msg + "\n" + 
+			 "これでよろしいですか？";
+	if (result) goto __install_confirm;
+	else {
+		question "手動でソフトウェアを選択しますか？";
+		if (!result) call _local_exitinstall 0;
+	}
+
+__manual_detect:
+	call _local_selectplatform;
+	#FOUNDPLATFORM = ##return;
+	if (#FOUNDPLATFORM <= 0) {
+		question "ソフトウェアが選択されていません。\n" + 
+				"自動で検出しますか？";
+		if (!result) call _local_exitinstall 0;
+		goto __auto_detect;
+	}
+
+__install_confirm:
+	question "この後、各ソフトウェアのためのインストール作業を\n" + 
+			"順番に実行し、結果をデータベースに保存します。\n" + 
+			"インストールを続行しますか？";
+	if (!result) call _local_exitinstall 0;
+
+	//	マクロベースデータの書き込み
+	call _local_write_platformdatabase;
+	if (!##return) {
+		message "データベースの作成に失敗しました。";
+		call _local_exitinstall 0;
+	}
+
+	title "マクロ共通情報の書き込み中...";
+	call _kernel_writedatanum "", "Reg_Version", #REG_VERSION;
+	call _kernel_writedatastr $REG_K_VERSION, "MacroVersion", $VERSION;
+	call _kernel_writedatastr $REG_K_MACROCONFIG, "HmOpenOption",
+		getinistr($INSTINI,"MacroBase","HmOpenOption");
+	call _kernel_writedatastr $REG_K_MACROCONFIG, "EnableControlExt",
+		getinistr($INSTINI,"MacroBase","EnableControlExt");
+	call _kernel_writedatanum $REG_K_MACROCONFIG, "TimeWait", 3;
+	call _local_getlongfilename $MS_DIR + "\\macserv.exe";
+	$MS_DIR = $DIRECTORY;
+	call _kernel_writedatastr $REG_K_MC_MS, "BaseDir", $MS_DIR;
+	call _kernel_writedatanum $REG_K_MACROCONFIG+"\\TeXware",
+		"CompCheck", 1;
+	call _kernel_writedatanum $REG_K_MACROCONFIG+"\\DVIware",
+		"OpenType", 1;
+	title 0;
+
+	//	ソフトウェアのインストール作業
+	#INSTPLATFORM = #FOUNDPLATFORM;
+	#UNINSTPLATFORM = 0;
+	call _local_platforminstall_main;
+	if (!##return) {
+		message "ソフトウェアが一つもインストールされていません。";
+		call _local_exitinstall 0;
+	} else #INSTPLATFORM = ##return;
+
+	message "サポートソフトウェアのインストール作業が完了しました。\n" + 
+			"今から各カテゴリ毎に使用できるソフトウェアを表示するので、\n" + 
+			"その中から使用するソフトウェアを選択して下さい。";
+	##a = 0;
+	while (##a < #PTYPE_NUM) {
+		call _kernel_getdatanum $REG_K_PLATFORM, $PTYPE_NAME[##a] + "_Mask";
+		if (##return & #INSTPLATFORM) {
+			##inst_ptype = ##return;
+			##mn = 0;
+			##b = 0;
+			##id = 1;
+			while (##b < #SP_MAXNUM) {
+				if (##id & ##inst_ptype) {
+					call _kernel_getdatastr $REG_K_PLATFORM, str(##id);
+					$$sp_iname[##mn] = $$return;
+					$$keyname = $REG_K_PLATFORM + "\\" + $$return;
+					call _kernel_getdatanum $$keyname, "InstalledWareFlag";
+					if (##return & #PTYPE_ID[##a]) {
+						call _kernel_getdatastr $$keyname, "PlatformName";
+						$$menu[##mn] = $$return;
+						##mn = ##mn + 1;
+					}
+				}
+				##id = ##id * 2;
+				##b = ##b + 1;
+			}
+			if (##a == 1) {
+				$REG_ENUM[0] = "DVIware_DVI";
+				$REG_ENUM[1] = "DVIware_PS";
+				$REG_ENUM[2] = "DVIware_PDF";
+				$REG_VALUE[0] = "";
+				$REG_VALUE[1] = "";
+				$REG_VALUE[2] = "";
+__select_previewers:
+				message "DVIware は DVI, PS, PDF ファイル毎に\n" + 
+						"ソフトウェアを選択して下さい。";
+				message "DVI ファイルのプレビューアを選択して下さい。";
+				menuarray $$menu, ##mn;
+				if (result) $REG_VALUE[0] = $$sp_iname[result - 1];
+				message "PS ファイルのプレビューアを選択して下さい。";
+				menuarray $$menu, ##mn;
+				if (result) $REG_VALUE[1] = $$sp_iname[result - 1];
+				message "PDF ファイルのプレビューアを選択して下さい。";
+				menuarray $$menu, ##mn;
+				if (result) $REG_VALUE[2] = $$sp_iname[result - 1];
+				call _kernel_writeenumdatastr $REG_K_MACROCONFIG, 3;
+				##output = -1;
+				if ($REG_VALUE[0] != "") ##output = 0;
+				else if ($REG_VALUE[1] != "") ##output = 1;
+				else if ($REG_VALUE[2] != "") ##output = 2;
+				if (##output < 0) {
+					question "プレビューアが一つも選択されていません。\n" + 
+							 "選択をやり直しますか？";
+					if (result) goto __select_previewers;
+					message "あとで必ずプレビューアを選択して下さい。";
+				} else {
+					call _kernel_writedatastr $REG_K_MACROCONFIG,
+											  "DVIware_Type",
+											  $REG_VALUE[##output];
+					call _kernel_writedatanum $REG_K_MACROCONFIG,
+											  "OutputType", ##output;
+				}
+			} else {
+				if (##mn == 1) $$sp_sel_iname = $$sp_iname[0];
+				else {
+					message $PTYPE_NAME[##a] + " を選択して下さい。";
+					menuarray $$menu, ##mn;
+					if (result) $$sp_sel_iname = $$sp_iname[result - 1];
+					else $$sp_sel_iname = "";
+				}
+				call _kernel_writedatastr $REG_K_MACROCONFIG,
+					$PTYPE_NAME[##a] + "_Type", $$sp_sel_iname;
+			}
+		}
+		##a = ##a + 1;
+	}
+
+	//	エンディングメッセージ
+	message "インストール作業は全て終了しました。\n" + 
+			"後は「各種設定の変更」から設定変更ができます。";
+	return;
+
+_local_platform_change:
+	//	サポートソフトウェアデータベースの更新
+	call _local_detect_supportmacro;
+	if (!##return) {
+		message "ソフトウェア固有のマクロセットが\n" + 
+				"一つも見つかりませんでした。\n" + 
+				"危険なので作業を中止します。";
+		return;
+	}
+	call _local_create_platformdatabase;
+	call _local_write_platformdatabase;
+
+	//	既存のソフトウェア情報の取得
+	call _kernel_getdatanum $REG_K_PLATFORM, "InstalledPlatform";
+	#OLDPLATFORM = ##return;
+
+	question "ソフトウェアの検出を自動で行いますか？";
+	if (result) call _local_checkplatform;
+	else {
+		call _local_selectplatform;
+		if (##return == -1) return;
+	}
+	#FOUNDPLATFORM = ##return;
+	if (#OLDPLATFORM == #FOUNDPLATFORM) {
+		message "既にマシン固有の情報は正しくインストールされています。";
+		return;
+	}
+
+	##diff = #FOUNDPLATFORM^#OLDPLATFORM;
+	#INSTPLATFORM = ##diff&#FOUNDPLATFORM;
+	#UNINSTPLATFORM = ##diff&#OLDPLATFORM;
+	$$msg_inst = "";
+	$$msg_uninst = "";
+	##a = 0;
+	while (##a < #SP_NUM) {
+		if (#INSTPLATFORM & #SP_PID[##a])
+			$$msg_inst = $$msg_inst + " " + $SP_PNAME[##a] + "\n";
+		if (#UNINSTPLATFORM & #SP_PID[##a])
+			$$msg_uninst = $$msg_uninst + " " + $SP_PNAME[##a] + "\n";
+		##a = ##a + 1;
+	}
+	if ($$msg_inst == "") $$msg_inst = "(なし)";
+	if ($$msg_uninst == "") $$msg_uninst = "(なし)";
+	question "以下のソフトが新規にインストールされています。\n\n" + 
+			 $$msg_inst + "\n" + 
+			 "また、以下のソフトがアンインストールされています。\n\n" + 
+			 $$msg_uninst + "\n" + 
+			 "以下各ソフトのためのマクロの設定作業を順番に実行し、\n" + 
+			 "結果をレジストリに保存します。続行しますか？";
+	if (!result) call _local_exitinstall 0;
+	call _local_platforminstall_main;
+	return;
+
+_local_detect_supportmacro:
+	call _kernel_runms;
+	if (!##return) return 0;
+
+	title "サポートマクロの検索中…";
+	ddeexecute "setcurdir \"" + $MACRODIR + "\"";
+	if (!result) {
+		message "フォルダの移動に失敗しました。";
+		call _kernel_exitms;
+		return 0;
+	}
+	ddeexecute "enumdir *.*";
+	#SP_NUM = 0;
+	while (1) {
+		$$dir = dderequest("findnext");
+		if ($$dir == "") break;
+		call _common_tolower $$dir;
+		$$dir = $$return;
+		if (strstr($SYSDIRS, "|" + $$dir + "|") == -1) {
+			$$ini = $MACRODIR + "\\" + $$dir + "\\" + $SPINI;
+			if (!existfile($$ini)) continue;
+			$SP_VERSION[#SP_NUM] = getinistr($$ini,"Info","MacroVersion");
+			$SP_PNAME[#SP_NUM] = getinistr($$ini,"Info","ExternalName");
+			$SP_INAME[#SP_NUM] = getinistr($$ini,"Info","InternalName");
+			$SP_DSTR[#SP_NUM]  = getinistr($$ini,"Info","DetectionMethod");
+			#SP_PTYPE[#SP_NUM] = getininum($$ini,"Info","SupportedWareFlag");
+			if ($SP_VERSION[#SP_NUM] == ""	||
+				$SP_PNAME[#SP_NUM] == ""	||
+				$SP_INAME[#SP_NUM] == ""	||
+				$SP_DSTR[#SP_NUM]  == ""	||
+				(!(#SP_PTYPE[#SP_NUM] & #PTYPE_MASK))) continue;
+			#SP_NUM = #SP_NUM + 1;
+		}
+	}
+	call _kernel_exitms;
+
+	title 0;
+
+	return #SP_NUM;
+
+_local_create_platformdatabase:
+	title "サポートソフトウェアデータベースの作成";
+
+	##id_all = 0;
+	##id = 1;
+	##a = 0;
+	while (##a < #SP_MAXNUM) {
+		$REG_ENUM[##a] = str(##id);
+		##a = ##a + 1;
+		##id_all = ##id_all | ##id;
+		##id = ##id * 2;
+	}
+
+	if (!#INSTALL_USER) {
+		//	既にデータベースが存在していた場合の処理
+		call _kernel_getenumdatastr $REG_K_PLATFORM, #SP_MAXNUM;
+		##a = 0;
+		while (##a < #SP_MAXNUM) {
+			//	既に使用されている #SP_PID を ##id_all から除く
+			if ($REG_VALUE[##a] != "" &&
+				existfile($MACRODIR + "\\" + $REG_VALUE[##a] + "\\" + $SPINI)
+				) {
+				//	マクロフォルダが存在した場合のみ id を使用中と認識
+				##id_all = ##id_all ^ val($REG_ENUM[##a]);
+			} else $REG_VALUE[##a] = "";
+			##a = ##a + 1;
+		}
+	}
+
+	##a = 0;
+	while (##a < #SP_NUM) {
+		#SP_PID[##a] = 0;
+		##b = 0;
+		while (##b < #SP_MAXNUM) {
+			//	既に登録されている場合はその ID を取得
+			if ($REG_VALUE[##b] != "" &&
+				$REG_VALUE[##b] == $SP_INAME[##a]) {
+				#SP_PID[##a] = val($REG_ENUM[##b]);
+				break;
+			}
+			##b = ##b + 1;
+		}
+		if (#SP_PID[##a] == 0) {
+			//	未使用の ID を探す
+			##id = 1;
+			##b = 0;
+			while (##b < #SP_MAXNUM) {
+				if (##id & ##id_all) {
+					#SP_PID[##a] = ##id;
+					##id_all = ##id_all ^ ##id;
+					break;
+				}
+				##b = ##b + 1;
+				##id = ##id * 2;
+			}
+		}
+		//	この時点で #SP_PID[##a] に値が入っていない場合は overflow
+		if (#SP_PID[##a] != 0) {
+			##b = 0;
+			while (##b < #PTYPE_NUM) {
+				if (#SP_PTYPE[##a] & #PTYPE_ID[##b])
+					#PTYPE_ALL[##b] = #PTYPE_ALL[##b] | #SP_PID[##a];
+				##b = ##b + 1;
+			}
+		} else {
+			message "サポートソフトウェアの登録数が制限を越えました。";
+			break;	//	avoiding overflow
+		}
+		##a = ##a + 1;
+	}
+	#SP_NUM = ##a;	//	for overflow exception
+
+	title 0;
+
+	return;
+
+_local_write_platformdatabase:
+	if (!(#SP_NUM * #PTYPE_NUM)) return 0;
+
+	title "サポートソフトウェアデータベースの更新";
+	##a = 0;
+	while (##a < #SP_NUM) {
+		$REG_ENUM[##a] = str(#SP_PID[##a]);
+		$REG_VALUE[##a] = $SP_INAME[##a];
+		##a = ##a + 1;
+	}
+	call _kernel_writeenumdatastr $REG_K_PLATFORM, #SP_NUM;
+	##a = 0;
+	while (##a < #PTYPE_NUM) {
+		$REG_ENUM[##a] = $PTYPE_NAME[##a] + "_Mask";
+		#REG_VALUE[##a] = #PTYPE_ALL[##a];
+		##a = ##a + 1;
+	}
+	call _kernel_writeenumdatanum $REG_K_PLATFORM, #PTYPE_NUM;
+	title 0;
+
+	return 1;
+
+_local_checkplatform:
+	title "インストールされているソフトウェアの検索中...";
+	##platform = 0;
+	##a = 0;
+	while (##a < #SP_NUM) {
+		call _local_platformdetect $SP_DSTR[##a] + "|";
+		if (##return) {
+			call _local_checkfiles $MACRODIR+"\\"+$SP_INAME[##a]+"\\"+$SPINI;
+			if (##return) ##platform = ##platform | #SP_PID[##a];
+		}
+		##a = ##a + 1;
+	}
+	##a = 0;
+	while (##a < 2) {
+		//	Only TeXware and/or DVIware are checked.
+		if (!(##platform & #PTYPE_ALL[##a])) {
+			$MSGARG[0] = $PTYPE_NAME[##a];
+			message "マクロがサポートする" + $PTYPE_NAME[##a] + 
+					"が一つも見つかりません。\n" + 
+					"少なくとも一つはインストールして下さい。";
+			call _local_exitinstall 0;
+		}
+		##a = ##a + 1;
+	}
+	title 0;
+	return ##platform;
+
+_local_platformdetect:
+	while ($$1 != "") {
+		##s = strstr($$1, "|");
+		$$d = leftstr($$1, ##s);
+		$$1 = midstr($$1, ##s + 1, strlen($$1));
+		$$m = leftstr($$d, 1);
+		if ($$m == "i" && existfile(windir + "\\" + midstr($$d, 2, 256)))
+			return 1;
+		if ($$m == "e" && getenv(midstr($$d, 2, 256)) != "")
+			return 1;
+		if ($$m == "r") {
+			if (midstr($$d, 2, 1) == "2") $$m = "CLASSESROOT";
+			else if (midstr($$d, 2, 1) == "1") $$m = "CURRENTUSER";
+			else $$m = "LOCALMACHINE";
+			openreg $$m, midstr($$d, 3, 256);
+			if (result) {
+				closereg;
+				return 1;
+			}
+		}
+	}
+	return 0;
+
+_local_selectplatform:
+	call _kernel_runms;
+	if (!##return) return -1;
+
+	title "CREATING DIALOG";
+	ddepoke "newdialog", "40,設定を行うソフトウェアの選択";
+	##a = 0;
+	while (##a < #SP_NUM) {
+		ddepoke "newcontrol", "check," + str(##a) + "," + $SP_PNAME[##a];
+		ddepoke "default", str((#OLDPLATFORM & #SP_PID[##a]) / #SP_PID[##a]);
+		##a = ##a + 1;
+	}
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+	call _kernel_makedlg;
+	if ($$return == "0") {
+		call _kernel_exitms;
+		return -1;
+	}
+	##platform = 0;
+	##a = 0;
+	while (##a < #SP_NUM) {
+		if (dderequest("getstate " + str(##a)) == "1") {
+			call _local_checkfiles $MACRODIR+"\\"+$SP_INAME[##a]+"\\"+$SPINI;
+			if (##return) ##platform = ##platform | #SP_PID[##a];
+		}
+		##a = ##a + 1;
+	}
+	call _kernel_exitms;
+	return ##platform;
+
+_local_checkfiles:
+	##n_file = getininum($$1, "Files", "FileNum");
+	if (!##n_file) return 0;
+	##a = 0;
+	while (##a < ##n_file) {
+		$$file = getinistr($$1, "Files", "FILE_" + str(##a));
+		if (!existfile($MACRODIR + $$file)) return 0;
+		##a = ##a + 1;
+	}
+	return ##n_file;
+
+_local_platforminstall_main:
+	title "各ソフトウェアのインストール/アンインストール";
+
+	//	インストール/アンインストール作業本体
+	##platform = 0;	//	実際にインストールされたソフトウェアのＩＤのビット和
+	##installedware = 0;	//	インストールされたカテゴリのビット和
+	##a = 0;
+	while (##a < #SP_NUM) {
+		if (#UNINSTPLATFORM & #SP_PID[##a]) {
+			call _kernel_writedatanum $REG_K_PLATFORM + "\\" + $SP_INAME[##a],
+				"InstalledWareFlag", 0;
+		} else if (#INSTPLATFORM & #SP_PID[##a]) {
+			call _local_platforminst ##a;
+			if (##return) ##platform = ##platform + #SP_PID[##a];
+		}
+		call _kernel_getdatanum $REG_K_PLATFORM + "\\" + $SP_INAME[##a],
+			"InstalledWareFlag";
+		##installedware = ##installedware | ##return;
+		##a = ##a + 1;
+	}
+
+	//	各カテゴリ毎のインストール状況のチェック
+	##a = 0;
+	while (##a < #PTYPE_NUM) {
+		if ((!(#PTYPE_ID[##a] & ##installedware)) && ##a < 2) {
+			message $PTYPE_NAME[##a] + " のためのインストール作業が" + 
+					"行われていません。\n" + 
+					"このソフトウェアは必須です。" + 
+					"後で必ずインストールして下さい。";
+		}
+		##a = ##a + 1;
+	}
+	##platform = ##platform + #OLDPLATFORM - #UNINSTPLATFORM;
+	$REG_ENUM[0] = "InstalledPlatform";
+	$REG_ENUM[1] = "InstalledWare";
+	#REG_VALUE[0] = ##platform;
+	#REG_VALUE[1] = ##installedware;
+	call _kernel_writeenumdatanum $REG_K_PLATFORM, 2;
+	return ##platform;
+
+_local_platforminst:
+	$MSGARG[0] = $SP_PNAME[##1];
+	call _kernel_showmsg 0, "Message_Inst_StartInstall";
+
+	$$key = $REG_K_PLATFORM + "\\" + $SP_INAME[##1];
+	$REG_ENUM[0] = "SupportedWareFlag";
+	$REG_ENUM[1] = "InstalledWareFlag";
+	#REG_VALUE[0] = #SP_PTYPE[##1];
+	#REG_VALUE[1] = 0;
+	call _kernel_writeenumdatanum $$key, 2;
+	$REG_ENUM[0] = "PlatformName";
+	$REG_ENUM[1] = "MacroVersion";
+	$REG_VALUE[0] = $SP_PNAME[##1];
+	$REG_VALUE[1] = $SP_VERSION[##1];
+	call _kernel_writeenumdatastr $$key, 2;
+
+	call _kernel_execmacro $SP_INAME[##1] + "\\install.mac";
+	if (!##return) call _local_nofile;
+
+	call _kernel_getdatanum $$key, "InstalledWareFlag";
+	return ##return;
+
+_local_getlongfilename:
+	call _kernel_runapp $LFNCMD + "\"" + $$1 + "\"";
+	if (!##return) call _local_exitinstall 0;
+	$DIRECTORY = getinistr($LFNINI, "Result", "directory");
+	if ($DIRECTORY == "") {
+		$MSGARG[0] = $TOOLDIR;
+		$MSGARG[1] = "getlfn.ini";
+		call _kernel_showmsg 0, "Error_Access_ForbiddenRead";
+		call _local_exitinstall 0;
+	}
+	$FILENAME = getinistr($LFNINI, "Result", "filename");
+	$BASENAME = getinistr($LFNINI, "Result", "basename");
+	return;
+
+_local_nofile:
+	message "ファイルが正常に配置されていません。\n" + 
+			"tmc_inst.txt の内容に従ってファイルを配置して下さい。";
+	endmacroall;
+
+_local_exitinstall:
+	if (##1) {
+		question "インストール作業を中止しますか？";
+		if (!result) return;
+	}
+	message "マクロのインストールを中止します。";
+	endmacroall;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

@@ -1,0 +1,93 @@
+    +-------------------------------------------------------------------+
+    |    TeX Module Control with HIDEMARU MACRO     Ver.3.3             |
+    |                                                                   |
+    |                                            Packages Information   |
+    +-------------------------------------------------------------------+
+
+  【１】  現在公開されているパッケージ
+
+    この章の各節の意味は下記の通りです。
+
+        [パッケージ名] パッケージ： サポートするモジュール名
+          パッケージのサポートするソフトウェアの説明
+
+    以下は現在公開されているパッケージに関する説明です。
+
+    [WinTeX] パッケージ：   VirTeX, Previewer, MakeIndex, BibTeX
+
+      株式会社インプレスの「TeX for Windows ～縦組対応日本語TeX統合環境」に付
+      属している各モジュールを、秀丸マクロから直接操作します。
+
+
+    [pTeX2GUI] パッケージ： VirTeX, MakeIndex, BibTeX
+
+      株式会社ソフトバンクの「pLaTeX2e for Windows Another Manual」に付属して
+      いる各モジュールを、秀丸マクロから直接操作します。
+
+
+    [pTeX2] パッケージ：    VirTeX, MakeIndex, BibTeX
+
+      コマンドラインベースの各モジュールを、(専用の補助ツール群を使って)秀丸
+      マクロから直接操作します。
+      ※  正式なサポート対象は
+          [ASCII pTeX]
+            ・淺山氏による MS-DOS への移植版  (2.1.4)
+            ・淺山氏/角藤氏による Win32 への移植版   (2.1.4以降)
+          [NTT-JTeX]
+            ・角藤氏による Win32 への移植版
+          [PDFTeX]
+            ・角藤氏による Win32 への移植版
+          ですが、旧来の TeX2.XX ベースの MS-DOS 移植版も動作する「かも」しれ
+          ません(テスト環境がないので確認はしてません(^^;)。
+
+
+    [DVIOUT] パッケージ：   Previewer
+
+      SHIMA 氏による DVIOUT の、乙部氏による Win32 への移植版である「DVIOUT
+      for Windows 95/NT」を、秀丸マクロから直接操作します。
+
+
+    [WinDVI] パッケージ：   Previewer
+
+      OS/悟 氏による「WinDVI for Windows」を秀丸マクロから直接操作します。
+
+
+    [DVI_PS] パッケージ：   Previewer
+
+      [dvips family]
+        ・淺山氏による dvips for MS-DOS
+        ・角藤氏による dvips(k) for Win32
+      [dvi2ps family]
+        ・角藤氏による jdvi2kps, dvi2ps for Win32
+      と、
+        ・Aladdin GSview (with Aladdin Ghostscript)(*)
+      を、秀丸マクロから直接操作します。
+
+      (*) Ver.5.0 以降の Ghostscript では PDF ファイルも扱えます
+          ＆ PDFTeX からの出力の場合は DVI->PS コンバータを通さずに、直接
+          GSview を実行します。
+
+
+    [ADOBE_AR] パッケージ： Previewer
+
+      Adobe Acrobat Reader 3.0J を、秀丸マクロから直接操作します。
+      ※  PDFTeX をインストールしていない場合は無意味(^^;ですが。
+
+
+    [DVI2TTY] パッケージ：  Previewer
+
+      DVI ファイルをコンソールへ出力する (j)dvi2tty を秀丸から直接操作します。
+      (出力結果は秀丸のウィンドウへ表示します。)
+
+
+  【２】  あったらいいけど環境がないため作者が作れないパッケージ(^^;
+
+    ※  以下のパッケージ名は、作者が「もし作成＆公開して頂けるならこんな名前
+        にしてほしいなぁ～」と思っているだけで、公開時には別の名前で配布され
+        るかもしれません。
+        (但し MS-DOS のファイル名のルールには従って下さい＜誰にいってんの(^^;)
+
+    [TeXDLL] パッケージ …  淺山氏による pTeX 2.1.5(以降) の Win32 移植版
+    [OLDTeX] パッケージ …  MS-DOS(+GO32) 上で動作する旧版の (p)TeX 達
+
+

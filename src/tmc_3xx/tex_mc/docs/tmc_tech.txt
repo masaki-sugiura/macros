@@ -1,0 +1,476 @@
+    +-------------------------------------------------------------------+
+    |    TeX Module Control with HIDEMARU MACRO     Ver.3.3             |
+    |                                                                   |
+    |                                               Technical Note      |
+    +-------------------------------------------------------------------+
+
+  【０】  はじめに
+
+    このファイルでは、マニュアル(tmc_inst.txt,tmc_user.txt)には明示的に書かか
+    れていない、より技術的な情報について説明します。
+    ※  読まなくてもマクロは使えます(^^;。
+
+    [Ver.3.3.0 より]
+      (個人的には(^^;)懸案だった「ソフトウェア固有のマクロのパッケージ化」が
+      できるように、ソフトウェア固有の情報を TeX-MC マクロフォルダ内のマクロ
+      etc. から完全に排除しました。というわけで、共通マクロに触ることなくサポ
+      ートマクロ(のパッケージ)を追加することが可能になりました。こうすること
+      の機能面での効果は皆無(^^;…というよりインストール時のオーバーヘッドが
+      増加してますが(爆(^^;)、ダウンロードの際に必要なパッケージだけ選ぶこと
+      で課金の節約にはなる…かな(^^;？
+
+    [Ver.3.3.11 より]
+      このバージョンから source specials 機能をサポートしました。一応 DVIware
+      にはよらない実装になっていますが、現在の所 DVIOUT でしか利用できません。
+
+
+
+  【１】  マクロで使用するデータベースの構成について
+
+    [1-1] インストール情報定義ファイル(instinfo.ini)の構成
+
+      ○  instinfo.ini には、メインインストールマクロ(tmc_inst.mac)がインスト
+          ール/アップデート時に参照する以下の情報が書かれています。
+
+          [TeX-MC マクロフォルダにある instinfo.ini]
+
+          1)  マクロ/データベースのバージョン           [Version]
+
+              MacroVersion      : マクロのバージョン  (ex. 3.2.0)
+              Reg_Version       : レジストリのバージョン  (ex. 2)
+
+          2)  マクロの基本部分に関する情報              [MacroBase]
+
+              HmOpenOption      : 秀丸ステルスオープンのオプション  (ex. /h)
+              EnableControlExt  : コンパイルetc. を許すファイルの拡張子
+                                  (ex. .tex.ltx.dtx.texi)
+              SysDirs           : TeX-MC マクロフォルダにあるサブフォルダの内
+                                  ソフトウェア固有のマクロフォルダ「でない」
+                                  物のリスト("|" で区切られたフォルダ名)
+
+          3)  マクロの動作に必要なファイルのリスト      [Files]
+
+              FileNum           : "FILE_??" の数
+              FILE_??           : マクロの実行に必要なファイル
+                                  (TeX-MC マクロフォルダからの相対パス)
+
+          [ソフトウェア固有のマクロフォルダにある instinfo.ini]
+
+          1)  メインインストールマクロ(tmc_inst.mac)が参照する情報	[Info]
+
+              ExternalName      : マクロの外部識別名 (ex. TeX for Windows)
+              InternalName      : マクロの内部識別名 (ex. WinTeX)
+              DetectionMethod   : ソフトウェアの検出方法の定義(*1)
+              SupportedWareFlag : マクロがサポートしているカテゴリを表す数(*2)
+
+          2)  マクロの動作に必要なファイルのリスト                  [Files]
+
+              ※ 上記の 3) と同じルール
+
+          (*1)検出方法は以下のルールで記述されている。
+
+              ソフトウェア識別名  : 検索対象シンボル(#1) + ":" + 
+                                    検索対象物の名前(#2)
+
+              (#1)  i = INIファイル, e = 環境変数, r = レジストリ
+              (#2)  INIファイル名, 環境変数名, もしくは
+                    "0" + Reg_KeyName … HKEY_LOCAL_MACHINE\Reg_KeyName
+                    "1" + Reg_KeyName … HKEY_CURRENT_USER\Reg_KeyName
+
+          (*2)以下の数値の和(ビット和)になる
+
+              VirTeX = 1, Previewer = 2, MakeIndex = 4, BibTeX = 8
+
+
+    [1-2] レジストリツリー構成 (Reg_Version:3 に相当)
+
+      ○  ツリーの読み方
+
+        \XXXX       : サブキー
+        SZ:"XXX"    : REG_SZ 型の値("XXX"は名前)
+        DWORD:"XXX" : REG_DWORD型の値(  〃  )
+
+        ※  名前の部分が"$"で始まる物は、実際には以下の物となる
+
+          ＊  $REG_ROOT   : TeX-MC 専用キー
+          ＊  $PTYPE_NAME : "TeXware", "DVIware", "MkIdxware", "BibTeXware"
+          ＊  $SP_INAME   : ソフトウェア内部識別名
+          ＊  $SP_PID     : ソフトウェア識別ID
+          ＊  $SP_INAME_TEXWARE : $SP_INAME の内、"TeXware" の物どれか
+          ＊  $n[Num]     : "0" ～ "(同じサブキー内にある)"Num"の値 - 1"
+
+        ※  $SP_INAME\$PTYPE_NAME 以下は(基本的には)ソフトウェア毎に異なるツ
+            リー構成を持つ(ソフトウェア毎に用意しているマクロのみがアクセスす
+            るため)。
+
+      ○  レジストリデータ(HKEY_CURRENT_USER\Software 内)
+
+        ※  Ver.3.1 (Reg_Version:1) から、全てのデータを上記レジストリに格納
+            するように仕様を変更しました(HKEY_LOCAL_MACHINE にはアクセスしま
+            せん)。
+
+        ＊  \Sugi_Macro\TeXModuleControl (= $REG_ROOT)
+
+            マクロで使用するルートキー。以下の値を持つ。
+
+              ・  DWORD:"Reg_Version"
+                  レジストリ構成に対するバージョン(現在は 3 になる)
+
+        ＊  \$REG_ROOT\VersionInfo
+
+            バージョン情報を格納するサブキー。以下の値を持つ。
+
+              ・  SZ:"MacroVersion"
+                  マクロのバージョン。以下の形式を持つ。
+                  3.("Reg_Version"の値).(マイナーバージョン)
+
+        ＊  \$REG_ROOT\MacroConfig
+
+            マクロの動作パラメータを格納するサブキー。以下の値を持つ。
+
+              ・  SZ:"MacroDir"
+                  TeX-MC マクロのベースフォルダ名 (= $TMC_BASEDIR)。
+                  「秀丸マクロのフォルダ＋"tex_mc"」
+
+              ・  SZ:"HmOpenOption"
+                  ステルスモードで開く秀丸に渡すオプション。
+                  Default:  "/h"
+
+              ・  SZ:"EnableControlExt"
+                  マクロの起動(モジュールの実行)を許すファイルの拡張子の並び。
+                  Default:  ".tex.ltx.dtx.texi"
+
+              ・  SZ:"MenuSequence_Main"
+                  メインメニューの項目を表わす文字列。
+                  Default:  "VTS|PR|WC"
+
+              ・  DWORD:"TimeWait"
+                  「各処理の実行待ち」の秒数。
+                  Default:  3
+
+              ・  DWORD:"SourceSpecials"
+                  カーソル行のページにジャンプ(source specials を使う)
+                  Default:  0
+
+              ・  SZ:$PTYPE_NAME + "_Type"
+                  使用するソフトウェアの識別名($SP_INAME)。
+                  Default:  インストール時に選択したソフトウェアの内部識別名
+
+        ＊  \$REG_ROOT\MacroConfig\MacroServer
+
+            マクロサーバの設定を格納するサブキー。以下の値を持つ。
+
+              ・  SZ:"BaseDir"
+                  マクロサーバの実行ファイルのあるフォルダ名。
+                  Default:  $TMC_BASEDIR + "\tools"
+
+              ・  DWORD:"QuitMS"
+                  マクロサーバの終了方法のフラグ。
+                    0: 常駐する(Default)
+                    1: いちいち終了
+
+        ＊  \$REG_ROOT\FormatMenu\$SP_INAME_TEXWARE
+
+            各ソフトウェアに対するフォーマットファイルの情報を格納する。以下
+            の値を持つ。
+
+              ・  DWORD:"Num"
+                  フォーマットファイル(のデータ)の数。
+
+              ・  SZ:$n[Num]
+                  以下の順序で構成される文字列。
+                    $ModuleFlag + $FormatFileName + ":" + $MenuName
+                  ここで、
+                    $ModuleFlag     :
+                      [WinTeX の場合]
+                       0: wpvtex.exe  を使用
+                       1: bwpvtex.exe を使用
+                      [pTeX2 or pTeX2GUI の場合(*)]
+                       0: (vir)tex.exe  を使用
+                       1: (vir)ptex.exe を使用
+                       2: pdftex.exe    を使用
+                       3: virjtex.exe   を使用
+                    $FormatFileName : フォーマットファイル名(.fmtは除く)
+                    $MenuName       : 変更メニューの文字列
+
+                    (*) 実際にどの実行ファイルを使用するかはマクロの設定や環
+                        境に依存する。詳しくは docs\packages サブフォルダにあ
+                        る 各マクロパッケージ毎のドキュメントを参照。
+
+                  ※  WinTeX 及び pTeX GUI-SHELL の場合、$n[Num] はモジュール
+                      に渡す Format ID に一致する。
+
+              ・  DWORD:"CurrentUsedFormat"
+                  使用するフォーマットファイルの番号($n[Num])。
+                  Default:  0
+
+        ＊  \$REG_ROOT\Platform
+
+            ソフトウェアのサポート情報、インストール情報を格納するサブキー。
+            以下の値を持つ。
+
+              ・  SZ:$SP_PID
+                  各ソフトウェアに対する識別IDの定義(bit flag)。値は $SP_INAME
+                  を表す。
+                  ※Ver.3.3.0 から、識別IDはインストール時にマクロが決定する
+                    ように変更。
+
+              ・  SZ:$PTYPE_NAME + "_Mask"
+                  各カテゴリ毎の $SP_PID のビット和。
+
+              ・  DWORD:"InstalledPlatform"
+                  インストールされているソフトウェアの $SP_PID のビット和。
+
+              ・  DWORD:"InstalledWare"
+                  現在インストールされているカテゴリのビット和。
+
+        ＊  \$REG_ROOT\Platform\$SP_INAME
+
+            各ソフトウェア毎のインストール情報を格納するサブキー。以下の値を
+            持つ。
+
+              ・  DWORD:"SupportedWareFlag"
+                  このソフトウェアがサポートするカテゴリの ID のビット和。
+
+              ・  DWORD:"InstalledWareFlag"
+                  インストールされているカテゴリの ID のビット和。
+
+              ・  SZ:"PlatformName"
+                  ソフトウェアの外部識別名。
+
+        ＊  \$REG_ROOT\Platform\$SP_INAME\$PTYPE_NAME
+
+            $SP_INAME の各カテゴリ固有の設定を格納するサブキー。(少なくとも)
+            以下の値を持つ。
+
+              ・  SZ:"BaseDir"
+                  実行ファイルのあるフォルダ名。
+
+            Ver.3.4.0 以降、DVIware について以下のキーを参照することがある。
+            (キーが存在しない場合は 0 とみなされる)
+
+              ・  DWORD:"SourceSpecials"
+                  source specials 機能を使用するかどうか
+
+            ※  その他のキーについては docs\packages サブフォルダにある各マク
+                ロパッケージ毎のドキュメントを参照。
+
+
+    [1-3] プロジェクトデータファイル(*.prj)の構成
+
+      プロジェクト機能を使用する時に、親・子ファイル固有の情報を保存するため
+      のファイルで、以下のセクション・キーを持ちます。
+
+      ・  [ProjectData]
+          CreatorMacro_MajorVersion : (Ver.3.X から追加) このキーの有無で
+                                      Project_Parent のファイル名が拡張子を持
+                                      つかどうかを決める。
+          Project_Parent            : 親ファイルのベースファイル名
+                                      (Ver.2.XX の場合は拡張子を含まない)
+          ProjectName               : プロジェクト名
+          Project_All               : 子ファイルのベース名の並び。
+                                      (拡張子は含まない。 *.tex に固定)
+          SubFileNum                : 子ファイルの数
+          Project_Sub_?             : "ファイル名|1970/01/01からの経過秒"
+          Project_Header            : 常に読み込むファイルの並び
+          OldSubFiles               : 前回の処理で読み込まれたファイルの並び
+
+      ・  [User_Project]
+          UserGroup_Num             : 定義されているユーザー指定グループの数
+          UserGroupName_?           : ユーザー指定グループの名前
+          UserGroup_?               : グループのファイル名の並び
+
+      ※  Ver.3.X で作成されたプロジェクトデータファイルを Ver.2.XX で読み込
+          むためには、CreatorMacro_MajorVersion キーを削除して、Project_Parent
+          の右辺のファイル名から拡張子だけを削除すればよいです。
+          但し、Ver.2.XX では拡張子が"*.tex"のファイルだけしか処理することが
+          できません。
+
+
+    [1-4] 処理中のファイルに関する情報定義ファイル(dyndata.ini)の構成
+
+      ○  このマクロでは、現在処理中の内容に関するデータを各マクロファイル同
+          士で交換するために、マクロのベースフォルダ内に dyndata.ini というフ
+          ァイルを作成します。以下はその内容です。
+
+        ・  [CurrentProjectInfo]
+            ProjectDir  : 処理対象のファイルのあるフォルダ名
+            FileName    : 処理対象のファイル(ベース)名
+            ShortName   : *.dvi, *.log ファイルの名前
+            LineNumber  : カーソル行の行番号
+            OutputExt   : TeX コンパイラの出力ファイルの拡張子(.dvi, .pdf)
+
+        ・  [ModuleCmd]
+            ExecCmd         : tmc_krnl.mac に渡す実行定義フラグ。
+                              意味は tmc_main.mac を参照。
+            return_******   : ******.mac からの戻り値
+            require_apps    : scanfile.exe からの戻り値
+            Wait            : 処理の実行待ちの秒数 or 0
+            Error_FileName  : エラーのあったファイル名
+            Error_Line      : エラーのあった行数
+
+        ・  [Error_Hook]  (ASCII pTeXのみ)
+            Exec_Flag       : err_hook.exe からの戻り値
+
+        ・  [VersionUpInfo] (アップデート時にのみ使用)
+            OldVersion      : マクロの旧バージョン(ex. 3.2.1)
+            NewVersion      : マクロの新バージョン(ex. 3.3.11)
+
+
+
+  【２】  ソフトウェア固有のマクロファイルのインターフェイスの仕様
+
+    ○  このマクロでは各ソフトウェアの違いを、共通なインターフェイスを持つマ
+        クロをソフトウェア毎に用意する事で吸収しています。
+
+    ○  各ソフトウェア固有のマクロのインターフェイスの仕様は以下の通りです。
+
+      ＊  install.mac
+
+        ・  作業内容
+            各ソフトウェアのインストール情報を
+              HKEY_CURRENT_USER\$REG_ROOT\Platform\$SP_INAME
+            サブキー以下に(必要があれば)書き込む。
+            (TeXware のみ) フォーマットファイルのデータベースを
+              HKEY_CURRENT_USER\$REG_ROOT\FormatMenu\$SP_INAME_TEXWARE
+            に作成する。
+
+        ・  取得/変更可能なパラメータ
+            現在のインストール状況を
+              HKEY_CURRENT_USER\$REG_ROOT\Platform\$SP_INAME
+            サブキー以下から取得できる。
+
+        ・  戻り値
+            上記のサブキーの InstalledWareFlag にインストール/アンインストー
+            ルしたカテゴリの情報を書き込む。
+
+      ＊  update.mac (必要な場合のみ)
+
+        ・  作業内容
+            マクロのバージョンアップ時にデータベースの書き換えetc.を行う。
+
+        ・  取得/変更可能なパラメータ
+            旧/新バージョンを dyndata.ini の [VersionUpInfo] セクションから取
+            得できる。また、現在のインストール状況を
+              HKEY_CURRENT_USER\$REG_ROOT\Platform\$SP_INAME
+            サブキー以下から取得できる。
+
+        ・  戻り値
+            特になし
+
+      ＊  virtex.mac, preview.mac, etc.
+
+        ・  作業内容
+            各ソフトウェアを起動して必要な処理を実行する。
+
+        ・  取得/変更可能なパラメータ
+            dyndata.ini の現在のファイルに関する情報
+            (もしあれば)
+              HKEY_CURRENT_USER\$REG_ROOT\Platform\$SP_INAME\$PTYPE_NAME
+            以下にあるソフトウェア固有の動作定義パラメータ
+            (TeXware のみ)
+              HKEY_CURRENT_USER\$REG_ROOT\FormatMenu\$SP_INAME_TEXWARE
+            サブキーにあるフォーマットファイルの情報
+
+        ・  戻り値
+            dyndata.ini の [ModuleCmd] セクションの "return_???" キーに
+            (tmc_krnl.mac で定義された)戻り値を書き込む。
+
+      ＊  t_config.mac, d_config.mac, etc.
+
+        ・  作業内容
+            各ソフトウェア固有の設定を変更する。
+
+        ・  取得/変更可能なパラメータ
+            (もしあれば)
+              HKEY_CURRENT_USER\$REG_ROOT\Platform\$SP_INAME\$PTYPE_NAME
+            サブキー以下の値。
+
+        ・  戻り値
+            特になし
+
+
+
+  【３】  tools フォルダ以下のツールについての説明
+
+    ※  以下のツールは全て Win32 環境でのみ動作する物です。特に、Win32s 上で
+        は動作しないと思います(テストは行ってませんが(^^;)。
+
+    [全てのソフトウェアで使用]
+
+    ・  getlfn.exe
+
+      ○  用途
+          (DOS形式の)フルパス名から長いファイル名etc.を得るツールです。
+          (相対パス名はサポートしていません。)
+          秀丸マクロの directory, filename キーワードに関する不具合(ファイル
+          の開き方によっては長いファイル名が正しく得られない(*1))への対策用で
+          汎用ツールとして利用できます。
+
+          (*1)  Ver.2.20 以降では修正されています。
+
+      ○  実行方法
+          コマンドラインから
+            getlfn.exe [options] filename
+          として起動します(filenameにはフルパス名のファイル名が入る)。
+
+          [options] として指定可能な物は以下の通りです。
+
+            -d inifile-dir    : getlfn.ini を作成するフォルダ名
+                                (デフォルトはgetlfn.exe と同じフォルダ)
+
+          結果は getlfn.ini の [Result] セクションに書き込まれます。
+          エントリ名とその内容は以下の通りです。
+
+            filename    : フルパスのファイル名(全て小文字に変換済み)
+            filename2   : 　　　　　〃　　　　(無変換)
+            filename3   : 　　　　　〃　　　　(MS-DOS 形式の名前)
+            basename    : ファイルベース名(全て小文字に変換済み)
+            basename2   : 　　　　〃　　　(無変換)
+            basename3   : 　　　　〃　　　(MS-DOS 形式の名前)
+            directory   : フォルダ名(全て小文字に変換済み)
+            directory2  : 　　〃　　(無変換)
+            directory3  : 　　〃　　(MS-DOS 形式の名前)
+
+            returncode  : = 0b00000 : 正常終了
+                          = 0b00001 : 引数が不正
+                          = 0b00010 : 無効なオプション
+                          = 0b00100 : filename,  etc. 取得に失敗
+                          = 0b01000 : filename2, etc. 取得に失敗
+                          = 0b10000 : filename3, etc. 取得に失敗
+                          のビット和
+
+    ・  scanfile.exe
+
+      ○  用途
+          指定された TeX ファイルから MakeIndex, BibTeX の実行が必要かどうか
+          と、*.dvi(*.pdf), *.aux, *.idx のタイムスタンプと指定ファイルのそれ
+          を比較して、コンパイルの必要の有無を判断します。
+
+      ○  実行方法
+          コマンドラインから
+            scanfile.exe filename
+          で実行します(filename には TeX ソースファイル名が入る)。
+
+          戻り値は tex_mc フォルダの dyndata.ini の [ModuleCmd] セクションの
+          require_apps キーに書き込まれます。値は以下のフラグのビット和になり
+          ます。
+            0b00001 : BibTeX の実行が必要
+            0b00010 : MakeIndex の実行が必要
+            0b00100 : PDFTeX が必要
+            0b01000 : VirTeX(or PDFTeX) の実行が必要
+            0b10000 : 何らかのエラーが発生
+
+    ・  tmcunins.exe
+
+      ○  用途
+          指定されたマクロのレジストリを削除します。
+
+      ○  実行方法
+          コマンドラインから
+            tmcunins.exe -c:"PathName"
+          として起動します。
+            HKEY_CURRENT_USER\Software\Sugi_Macro\TeXModuleControl"PathName"
+          を削除します(ex. tmcunins.exe -c:\VersionInfo )。
+
+

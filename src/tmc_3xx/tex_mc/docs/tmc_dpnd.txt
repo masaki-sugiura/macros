@@ -1,0 +1,534 @@
+    +-------------------------------------------------------------------+
+    |    TeX Module Control with HIDEMARU MACRO     Ver.3.3             |
+    |                                                                   |
+    |                                Software-Dependent Information     |
+    +-------------------------------------------------------------------+
+
+  【０】  はじめに
+
+    このファイルでは、このマクロから操作できる各ソフトウェアに固有の設定等の
+    情報を解説します。
+
+    なお、現時点でサポート対象になっているソフトウェアは以下の通りです。
+
+      ・  「TeX for Windows ～縦組対応日本語TeX統合環境」
+      ・  「pLaTeX2e for Windows Another Manual」付属の GUIシェル
+      ・  ASCII pTeX 2.1.X for MS-DOS/Win32 & PDFTeX
+      ・  DVIOUT for Windows 95/NT
+      ・  WinDVI for Windows
+      ・  dvips(K) for MS-DOS/Win32, jdvi2kps/dvi2ps for Win32,
+          and Aladdin GSview (with Aladdin Ghostscript)
+      ・  Adobe Acrobat Reader 3.0J
+
+
+  【１】  各ソフトウェア固有の情報
+
+    [1-1] 「TeX for Windows ～縦組対応日本語TeX統合環境」
+
+      ○  概要
+
+        株式会社インプレスの「TeX for Windows ～縦組対応日本語TeX統合環境」に
+        付属している各モジュールを、秀丸マクロから直接操作します。
+
+      ○  マクロでの識別名 etc.
+
+        ソフトウェア識別ID      ：  1 (0b00000001)
+        ソフトウェア識別内部名  ：  WinTeX
+        ソフトウェア識別外部名  ：  TeX for Windows
+
+      ○  このマクロから操作可能なもの
+
+        ・VirTeX モジュール     ：  wpvtex.exe, bwpvtex.exe
+        ・DVI プレビューア      ：  windvi32.exe, wdvip32.exe(*)
+        ・MakeIndex モジュール  ：  winmkidx.exe
+        ・BibTeX モジュール     ：  wbibtex.exe(*)
+
+        (*) がついているものは別途「パワーアップモジュール」として購入するも
+            のです。
+
+      ○  設定メニューの項目
+
+        ＊  TeX ware(VirTeX モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              (b)wpvtex.exe のあるフォルダ名を記入します。
+
+            ・フォーマットのフォルダ名：(REG_SZ:"FormatDir")
+              フォーマットファイル(*.fmt)のあるフォルダ名を記入します。
+
+          [フォーマットファイル関連の設定]
+
+            ・フォーマット毎の TeX のサイズを変更：
+              フォーマット毎に Small TeX(wpvtex.exe) か Big TeX(bwpvtex.exe)
+              のどちらを使うかを設定します。
+
+            ・フォーマットメニューの再構築：
+              (b)wpvtex からフォーマットファイルの選択メニューを読込み直しま
+              す(以前の設定は破棄されますがこれは仕様という事でご了解下さい)。
+
+          [動作定義パラメータ関連の設定]
+
+            ・WPVTEX の待機状態：(REG_DWORD:"QuitTeX")
+              コンパイル実行後の (b)wpvtex ウィンドウの状態を指定します。
+
+              「いちいち終了」
+                (b)wpvtex を終了します。
+
+              「アイコン化して待機」
+                (b)wpvtex ウィンドウをアイコン化します。
+
+              「そのまま待機」
+                (b)wpvtex ウィンドウをそのままにします。
+
+              ※  Windows 95 上で「いちいち終了」以外を選ぶと動作が不安定にな
+                  ることが知られています。従って、Windows 95 をお使いの方はな
+                  るべく「いちいち終了」を選択して下さい。
+
+        ＊  DVI ware(DVI プレビューア)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              windvi32.exe and/or wdvip32.exe のあるフォルダ名を記入します。
+
+            ・WinDvi の種類：(REG_SZ:"CmdArgv_0"～REG_SZ:"CmdArgv_2")
+              どの WinDvi を使用するかを選択します。
+
+          [動作定義パラメータ関連の設定]
+
+            ・開き直しの際の"[Reopen]"命令の使用の許可：(REG_DWORD:"Reopen")
+              同じ DVI ファイルを開く時に「常に一つだけ開く」にした場合、
+              WinDvi の「開き直す」の機能を使うかどうかを選択できます。
+
+              ※  Windows 95 上ではこの命令を使用すると動作が不安定になること
+                  が知られています。従って、Windows 95 をお使いの方はこの項目
+                  をチェックしないで下さい。
+
+        ＊  MakeIndex ware(MakeIndex モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              winmkidx.exe のあるフォルダ名を記入します。
+
+        ＊  BibTeX ware(BibTeX モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              wbibtex.exe のあるフォルダ名を記入します。
+
+
+    [1-2] 「pLaTeX2e for Windows Another Manual」付属の GUIシェル
+
+      ○  概要
+
+        株式会社ソフトバンクの「pLaTeX2e for Windows Another Manual」に付属し
+        ている各モジュールを、秀丸マクロから直接操作します。
+
+      ○  マクロでの識別名 etc.
+
+        ソフトウェア識別内部名  ：  pTeX2GUI
+        ソフトウェア識別外部名  ：  pTeX GUI-SHELL
+
+      ○  このマクロから操作可能なもの
+
+        ・VirTeX モジュール     ：  bwpvtex.exe
+        ・MakeIndex モジュール  ：  winmkidx.exe
+        ・BibTeX モジュール     ：  wbibtex.exe
+
+      ○  設定メニューの項目
+
+        ＊  TeX ware(VirTeX モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              bwpvtex.exe のあるフォルダ名を記入します。
+
+            ・フォーマットのフォルダ名：(REG_SZ:"FormatDir")
+              フォーマットファイル(*.fmt)のあるフォルダ名を記入します。
+
+          [フォーマットファイル関連の設定]
+
+            ・virtex の種類の変更：
+              フォーマット毎にどの TeX コンパイラを使うかを設定します。
+              ※  この設定項目は下記の「virtex の種類の変更を有効にする」を
+                  ＯＮにしないと有効になりません。
+
+            ・フォーマットメニューの再構築：
+              bwpvtex からフォーマットファイルの選択メニューを読込み直します
+              (以前の設定は破棄されますが、これは仕様という事でご了解下さい)。
+
+          [動作定義パラメータ関連の設定]
+
+            ・bwpvtex の待機状態：(REG_DWORD:"QuitTeX")
+              コンパイル実行後の bwpvtex ウィンドウの状態を指定します。
+
+              「いちいち終了」
+                bwpvtex を終了します。
+
+              「アイコン化して待機」
+                bwpvtex ウィンドウをアイコン化します。
+
+              「そのまま待機」
+                bwpvtex ウィンドウをそのままにします。
+
+              ※  bwpvtex の初期のバージョンでは「いちいち終了」以外を選ぶと
+                  動作が不安定になることが知られています。もし動作が不安定な
+                  場合は「いちいち終了」を選択して下さい。
+
+            ・virtex の種類の設定を有効にする：(REG_DWORD:"EnableChangeReg")
+              上記の「virtex の種類の変更」を有効にします。
+              ※  このチェックをＯＮにすると、コンパイル時に bwpvtex のレジス
+                  トリを動的に書き換えます。但し、bwpvtex の待機中にレジスト
+                  リを書き換えても結果が反映されないので、「いちいち終了」以
+                  外の設定にしている場合は正常な動作を期待できません。
+              ※  Ver.1.1a 以上の bwpvtex を使用している方は、各フォーマット
+                  ファイル毎に EXE ファイルを作成してそれを bwpvtex から呼び
+                  出すように設定できますが、その場合はこのオプションは無効に
+                  なります。
+
+            ・pTeX のバージョン：(REG_DWORD:"pTeX_MinorVersion")
+              bwpvtex から呼び出される ASCII-pTeX のバージョンを選択します。
+              現状では 2.1.4 or 2.1.5(以降) が選択可能です。
+              ※  正確には  2.1.4       -> virtex.exe, virptex.exe
+                            2.1.5(以降) -> tex.exe, ptex.exe
+                  という実行ファイル名を仮定する、という意味。
+              ※  Ver.1.1a 以上の bwpvtex を使用している方は、各フォーマット
+                  ファイル毎に EXE ファイルを作成してそれを bwpvtex から呼び
+                  出すように設定できますが、その場合この設定は無視されます。
+
+        ＊  MakeIndex ware(MakeIndex モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              winmkidx.exe のあるフォルダ名を記入します。
+
+        ＊  BibTeX ware(BibTeX モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              wbibtex.exe のあるフォルダ名を記入します。
+
+
+    [1-3] ASCII pTeX 2.1.X for MS-DOS/Win32 & PDFTeX
+
+      ○  概要
+
+        コマンドラインベースの各モジュールを、(専用の補助ツール群を使って)秀
+        丸マクロから直接操作します。
+        ※  正式なサポート対象は
+            [ASCII pTeX]
+              ・淺山氏による MS-DOS への移植版  (2.1.4)
+              ・淺山氏/角藤氏による Win32 への移植版   (2.1.4以降)
+            [NTT-jTeX]
+              ・角藤氏による Win32 への移植版
+            [PDFTeX]
+              ・角藤氏による Win32 への移植版
+          　ですが、旧来の TeX2.XX ベースの MS-DOS 移植版も動作する「かも」し
+            れません(テスト環境がないので確認はしてません(^^;)。
+
+      ○  マクロでの識別名 etc.
+
+        ソフトウェア識別内部名  ：  pTeX2
+        ソフトウェア識別外部名  ：  ASCII pTeX
+
+      ○  このマクロから操作可能なもの
+
+        ・VirTeX モジュール(*1) ：  2.1.4       : virtex.exe, virptex.exe
+                                    2.1.5(以降) : tex.exe, ptex.exe
+                                    NTT-jTeX    : virjtex.exe
+                                    PDFTeX      : pdftex.exe
+        ・MakeIndex モジュール  ：  mendex.exe, makeindex.exe
+        ・BibTeX モジュール     ：  bibtex.exe, jbibtex.exe
+
+        (*1)  フォーマットファイルと同じ名前の実行ファイルが各実行ファイルと
+              同じフォルダ内に見つかった場合はそちらを優先的に実行します。
+
+      ○  設定メニューの項目
+
+        ＊  TeX ware(VirTeX モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              (vir)tex.exe etc. のあるフォルダ名を記入します。
+
+            ・フォーマットのフォルダ名：(REG_SZ:"FormatDir")
+              フォーマットファイル(*.fmt)のあるフォルダ名を記入します。
+
+          [フォーマットファイル関連の設定]
+
+            ・フォーマット設定の変更：
+              フォーマット毎にどの TeX コンパイラを使うか、フォーマット選択メ
+              ニューでの名前を設定します。
+              ※  フォーマットファイルと同じ名前の実行ファイルを作成している
+                  場合 TeX コンパイラの指定は無意味になります。
+
+            ・フォーマットメニューの再構築：
+              フォーマットファイルの選択メニューを作成し直します。フォーマッ
+              トファイルを作成/削除した時に実行して下さい。
+
+          [動作定義パラメータ関連の設定]
+
+            これを実行すると各コンパイラ(TeX, pTeX, PDFTeX, NTT-jTeX)毎の設定
+            を変更するダイアログを表示します。変更できる設定は以下の通りです。
+
+            ・各コンパイラの実行ファイル名：
+              コンパイラの各実行ファイル名を指定します。
+
+            ・フォーマットファイルの指定子：
+              フォーマットファイルと同じ名前の実行ファイルがない場合に使用する
+              フォーマットファイルを指定するためのコマンドラインオプション指定
+              子を変更できます。
+
+            ・コマンドラインオプション：
+              コンパイラに渡すその他の("-" で始まる)オプションを指定できます。
+
+            ※  ここで指定した文字列は以下のルールに基づいて使用されます。
+                例として
+                  実行ファイル名　　　＝　"tex.exe"
+                  フォーマット指定子　＝　"-progname="
+                  オプション　　　　　＝　"-output-comment=FOO"
+                という指定で "latex.fmt" を使用し、a:\foo.tex を処理した場合
+
+                1)  もし latex.exe が tex.exe と同じフォルダにあった場合
+                      latex.exe -output-comment=FOO a:/foo.tex
+                    が実行されます。
+                2)  1) でない場合は
+                      tex.exe -output-comment=FOO -progname=latex a:/foo.tex
+                    が実行されます。
+
+        ＊  MakeIndex ware(MakeIndex モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              下記で指定した実行ファイルのあるフォルダ名を記入します。
+
+            ・実行ファイルのファイル名：(REG_SZ:"ExeName")
+              使用する MakeIndex の実行ファイル名を記入します。
+
+          [動作定義パラメータ関連の設定]
+
+            ※  以下は mendex のオプションとの対応を表します。
+
+            ・文字順の並び替え：            "-l"    (REG_DWORD:"Letter")
+            ・「ページ範囲で出力」の禁止：  "-r"    (REG_DWORD:"PageForm")
+            ・半角空白の圧縮：              "-c"    (REG_DWORD:"Blank")
+            ・「あかさたな…」形式の出力：  "-g"(*) (REG_DWORD:"JapaneseHead")
+            ・辞書無登録漢字の強制出力：    "-f"(*) (REG_DWORD:"ForceKanji")
+            ・スタイルファイル：            "-s"    (REG_SZ:"Style")
+            ・出力先ファイル：              "-o"    (REG_SZ:"Output")
+            ・辞書ファイル：                "-d"(*) (REG_SZ:"Dic")
+            ・エラーログファイル：          "-t"    (REG_SZ:"Log")
+            ・開始ページ指定：              "-p"    (REG_SZ:"Start")
+
+            (*) makeindex.exe では無効なオプションなので、そちらを使う場合は
+                チェックしないで下さい。
+
+        ＊  BibTeX ware(BibTeX モジュール)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              (j)bibtex.exe のあるフォルダ名を記入します。
+
+            ・実行ファイルのファイル名：(REG_SZ:"ExeName")
+              使用する BibTeX の実行ファイル名を記入します。
+
+
+    [1-4] DVIOUT for Windows 95/NT
+
+      ○  概要
+
+        SHIMA 氏による DVIOUT の、乙部氏による Win32 への移植版である
+        「DVIOUT for Windows 95/NT」を、秀丸マクロから直接操作します。
+
+      ○  マクロでの識別名 etc.
+
+        ソフトウェア識別内部名  ：  DVIOUT
+        ソフトウェア識別外部名  ：  DVIOUT for Windows
+
+      ○  このマクロから操作可能なもの
+
+        ・DVI プレビューア      ：  dviout.exe
+
+      ○  設定メニューの項目
+
+        ＊  DVI ware(DVI プレビューア)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              dviout.exe のあるフォルダ名を記入します。
+
+          [動作定義パラメータ関連の設定]
+
+            ・開き直しの際の"[Reopen]"命令の使用の許可：(REG_DWORD:"Reopen")
+              同じ DVI ファイルを開く時に「常に一つだけ開く」にした場合、
+              DVIOUT の「開き直す」の機能を使うかどうかを選択できます。
+
+            ・開く際の source specials 機能の使用の許可：
+              (REG_DWORD:"SourceSpecials")
+              このチェックがＯＮの場合、ソースファイルの現在のカーソル行に
+              対応するページを表示します。
+
+
+    [1-5] WinDVI for Windows
+
+      ○  概要
+
+        OS/悟 氏による「WinDVI for Windows」を秀丸マクロから直接操作します。
+
+      ○  マクロでの識別名 etc.
+
+        ソフトウェア識別内部名  ：  WinDVI
+        ソフトウェア識別外部名  ：  WinDVI
+
+      ○  このマクロから操作可能なもの
+
+        ・DVI プレビューア      ：  windvi.exe
+
+      ○  設定メニューの項目
+
+        ＊  DVI ware(DVI プレビューア)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+              windvi.exe のあるフォルダ名を記入します。
+
+          [動作定義パラメータ関連の設定]
+
+            ・開き直しの際の"[Reopen]"命令の使用の許可：(REG_DWORD:"Reopen")
+              同じ DVI ファイルを開く時に「常に一つだけ開く」にした場合、
+              WinDVI の「開き直す」の機能を使うかどうかを選択できます。
+
+
+    [1-6] dvips(K) for MS-DOS/Win32, jdvi2kps/dvi2ps for Win32,
+          and Aladdin GSview (with Aladdin Ghostscript)
+
+      ○  概要
+
+        [dvips family]
+          ・淺山氏による dvips for MS-DOS
+          ・角藤氏による dvips(k) for Win32
+        [dvi2ps family]
+          ・角藤氏による jdvi2kps, dvi2ps for Win32
+        と、
+          ・Aladdin GSview (with Aladdin Ghostscript)(*)
+        を、秀丸マクロから直接操作します。
+
+        (*) Ver.5.0 以降の Ghostscript では PDF ファイルも扱えます
+            ＆ PDFTeX からの出力の場合は DVI->PS コンバータを通さずに、直接
+            GSview を実行します。
+
+      ○  マクロでの識別名 etc.
+
+        ソフトウェア識別内部名  ：  DVI_PS
+        ソフトウェア識別外部名  ：  dvips(k) and GSView32
+
+      ○  このマクロから操作可能なもの
+
+        ・DVI->PS コンバータ    ：  dvips(k).exe, jdvi2kps.exe, dvi2ps.exe(*)
+        ・PS(PDF) プレビューア  ：  gsview32.exe
+
+        (*) 下記に述べる理由により、ちょっと手間がかかります(^^;。
+
+      ○  設定メニューの項目
+
+        ＊  DVI ware(DVI プレビューア)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・DVIPS のフォルダ名：(REG_SZ:"BaseDir_DVIPS")
+              下記の実行ファイルのあるフォルダ名を記入します。
+
+            ・ 〃 実行ファイル名＆オプション：(REG_SZ:"CmdArgv_DVIPS")
+              DVI->PS コンバータの実行ファイル名とコマンドライン(オプション)
+              を記入します。ここで、"$" で始まる文字列は以下のような特殊な意
+              味を持ちます。
+
+                $f  : DVI(PDF) ファイルのあるフォルダ名(最後に "\" がつかない)
+                $s  : DVI(PDF) ファイルの拡張子を除いたファイル(ベース)名
+                $!  : TeX ware が出力したファイル名(PDFTeX なら $s.pdf, それ
+                      以外は $s.dvi に等しい)
+                $$  : "$" それ自身
+
+              ※  dvi2ps.exe はオプションによる出力ファイル名の指定ができない
+                  こと、及び秀丸マクロの runsync2 命令がリダイレクトを正しく
+                  処理できないことから、下記のように面倒な(^^;ことをする必要
+                  があります。
+
+                1)  別途以下のような BAT ファイル(NT なら CMD ファイル)を作成
+                    し上記のフォルダに置いて下さい。
+                    [BAT ファイルの例 -- foo.bat]
+                      dvi2ps.exe %1.dvi > %1.ps
+
+                2)  実行ファイル名＆オプションには
+                      foo.bat $f\$s
+                    と記入して下さい。
+
+            ・PSVIEW のフォルダ名：(REG_SZ:"BaseDir_PSVIEW")
+              下記の実行ファイルのあるフォルダ名を記入します。
+
+            ・ 〃 実行ファイル名＆オプション：(REG_SZ:"CmdArgv_PSVIEW")
+              GSview の実行ファイル名とコマンドライン(オプション)を記入します
+              (上記の特殊な意味を持つ文字列が使用できます)。
+
+            ・PSVIEW のタイトルバー：(REG_SZ:"TitleBarString")
+              GSview のウィンドウのタイトルバーの文字列を記入します(上記の特
+              殊な意味を持つ文字列が使用できます)。既に起動している GSview を
+              探すために使用しますので、意味の分からない方は変更しないように
+              して下さい。
+
+
+    [1-7] Adobe Acrobat Reader 3.0J
+
+      ○  概要
+
+        Adobe Acrobat Reader 3.0J を、秀丸マクロから直接操作します。
+        ※  PDFTeX をインストールしていない場合は無意味(^^;ですが。
+
+      ○  マクロでの識別名 etc.
+
+        ソフトウェア識別内部名  ：  ADOBE_AR
+        ソフトウェア識別外部名  ：  Adobe Acrobat Reader
+
+      ○  このマクロから操作可能なもの
+
+        ・PDF プレビューア      ：  acrord32.exe
+
+      ○  設定メニューの項目
+
+        ＊  DVI ware(PDF プレビューア)
+
+          [フォルダ/ファイル名関連の設定]
+
+            ・Acrobat Reader のフォルダ名：(REG_SZ:"BaseDir")
+              下記の実行ファイルのあるフォルダ名を記入します。
+
+            ・実行ファイル名＆オプション：(REG_SZ:"CmdArgv")
+              Acrobat Reader の実行ファイル名とコマンドライン(オプション)を記
+              入します。ここで、"$" で始まる文字列は以下のような特殊な意味を
+              持ちます。
+
+                $f  : PDF ファイルのあるフォルダ名(最後に "\" がつかない)
+                $s  : PDF ファイルの拡張子を除いたファイル(ベース)名
+                $!  : TeX ware が出力したファイル名(PDFTeX なら $s.pdf, それ
+                      以外は $s.dvi に等しい)
+                $$  : "$" それ自身
+
+            ・タイトルバー：(REG_SZ:"TitleBarString")
+              Acrobat Reader のウィンドウのタイトルバーの文字列を記入します
+              (上記の特殊な意味を持つ文字列が使用できます)。既に起動している
+              Acrobat Reader を探すために使用しますので、意味の分からない方は
+              変更しないようにして下さい。
+
+

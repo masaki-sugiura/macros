@@ -1,0 +1,67 @@
+_install_exitinstall:
+	if( ##1 ){
+		question "インストール作業をスキップしますか？";
+		if( !result ) return;
+	}
+	call _kernel_writedatanum $REG_K_PLATFORM, "InstalledWareFlag",
+		#INST_SP_PTYPE;
+	endmacro;
+
+#end_of_routine
+
+
+_install_inputbasedir:
+	$$b = input($$2+" の実行ファイルのあるフォルダ名を\n" + 
+			"フルパスで記入して下さい。", $$1);
+	if( (!result) || $$b == "" ) call _install_exitinstall 1;
+	else if( rightstr($$b,1) == "\\" ) $$b = leftstr($$b,strlen($$b)-1);
+	if( !existfile($$b+"\\nul") ){
+		question "指定されたフォルダが見つかりません。\n" + 
+				"　　" + $$b + "\n" + 
+				"入力をやり直しますか？";
+		if( !result ){
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) call _install_exitinstall 0;
+		}
+		goto _install_inputbasedir;
+	}
+	call _install_getlongfilename $$b + "\\foo.txt";
+	return;
+
+#end_of_routine
+
+
+_install_getlongfilename:
+	call _kernel_runapp $LFNCMD + "\"" + $$1 + "\"";
+	if( !##return ) call _install_exitinstall 0;
+	$DIRECTORY = getinistr($LFNINI,"Result","directory");
+	if( $DIRECTORY == "" ){
+		$MSGARG[0] = $TOOLDIR;
+		$MSGARG[1] = "getlfn.ini";
+		call _kernel_showmsg 0, "Error_Access_ForbiddenRead";
+		call _install_exitinstall 0;
+	}
+	$FILENAME = getinistr($LFNINI,"Result","filename");
+	$BASENAME = getinistr($LFNINI,"Result","basename");
+	return;
+
+#end_of_routine
+
+
+_install_inputfoldername:
+	$$f = input($$1+"の実行ファイルのある\nフォルダ名を指定して下さい。\n" + 
+			"(存在しない場合はキャンセル)",$$2);
+	if( (!result) || $$f == "" ) return "";
+	if( rightstr($$f,1) == "\\" ) $$f = leftstr($$f,strlen($$f)-1);
+	if( !existfile($$f+"\\nul") ){
+		question "指定されたフォルダが見つかりません。\n" + 
+				"　　" + $$f + "\n" + 
+				"入力をやり直しますか？";
+		if( !result ) return "";
+		goto _install_inputfoldername;
+	}
+	return $$f;
+
+#end_of_routine
+
+

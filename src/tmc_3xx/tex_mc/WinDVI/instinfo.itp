@@ -1,0 +1,19 @@
+;
+;	「WinDVI」用
+;	サポートマクロセット
+;
+
+[Info]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+ExternalName=WinDVI
+InternalName=WinDVI
+DetectionMethod=r:1Software\OS_Satoshi\WinDVI
+SupportedWareFlag=2
+
+[Files]
+FileNum=4
+FILE_0=\WinDVI\preview.mac
+FILE_1=\WinDVI\d_config.mac
+FILE_2=\WinDVI\install.mac
+FILE_3=\WinDVI\instinfo.ini
+

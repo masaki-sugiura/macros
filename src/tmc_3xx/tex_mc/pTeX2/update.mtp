@@ -1,0 +1,132 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				UPDATING MANAGEMENT
+//	PLATFORM			ASCII-pTeX 2.1.X (Console)
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは ASCII-pTeX 専用です。										//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"pTeX2";
+
+//	レジストリキー名
+#REG_VERSION	=	%VER_MINOR%;
+$REG_ROOT	=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION	=	"VersionInfo";
+$REG_K_PLATFORM	=	"Platform";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	INI ファイル
+$MSGINI		=	$MACRODIR + "\\message.ini";
+
+
+main:
+	call _kernel_getdatanum $REG_K_PLATFORM+"\\"+$PNAME, "InstalledWareFlag";
+	#INSTWARE = ##return;
+	if( !#INSTWARE ) endmacro;
+
+	call _kernel_getdatastr $REG_K_PLATFORM+"\\"+$PNAME, "MacroVersion";
+	if( $$return != "" ) $OLDVERSION = $$return;
+	else {
+		call _kernel_getdatastr $REG_K_VERSION, "MacroVersion";
+		$OLDVERSION = $$return;
+	}
+	#REG_VERSION_OLD = val(midstr($OLDVERSION,2,1));
+	#REVISION_OLD = val(midstr($OLDVERSION,4,2));
+
+	if (#REG_VERSION_OLD < 4) {
+		// dvipdfm のサポート
+		$REG_ENUM[0] = "DviPdfm";
+		$REG_ENUM[1] = "Out2Uni";
+		$REG_VALUE[0] = "dvipdfm.exe";
+		$REG_VALUE[1] = "out2uni.exe";
+		call _kernel_writeenumdatastr
+			$REG_K_PLATFORM+"\\"+$PNAME+"\\TeXware", 2;
+		message "ASCII-pTeX をご使用の方へ：\n" + 
+				"Ver.3.4.0 から dvipdfm への対応が追加されました。\n" + 
+				"設定の詳細については docs/packages サブフォルダの\n" + 
+				"pTeX2.txt を参照して下さい。";
+	}
+
+	if( #INSTWARE & 1 ){
+		//	TeXware のバージョンアップ
+		if( (#REG_VERSION_OLD == 1) && (#REVISION_OLD < 5) ){
+			//	Ver.3.1.5 から err_hook.exe にまつわる仕様を変更
+			message "ASCII-pTeX をご使用の方へ：\n\n" + 
+					"Ver.3.1.5 から err_hook.exe の仕様が変更され、\n" + 
+					"環境変数 TEXEDIT への修正が必要なくなりました。\n" + 
+					"環境変数 TEXEDIT の修正を元に戻すには、\n" + 
+					"docs サブフォルダの tmc_inst.txt を参照して下さい。";
+		}
+		if( #REG_VERSION_OLD < 2 ){
+			//	Ver.3.2.0 から各コンパイルエンジン毎のコマンドラインetc.を
+			//	保存するように変更
+			call _kernel_getdatanum $REG_K_PLATFORM+"\\"+$PNAME+"\\TeXware",
+				"pTeX_MinorVersion";
+			if( ##return <= 4 ){
+				$EXEHEADER = "vir";
+				$FMTHEADER = "&";
+			} else {
+				$EXEHEADER = "";
+				$FMTHEADER = "-fmt=";
+			}
+			##a = 0;
+			while( ##a < 4 ){
+				$REG_ENUM[##a] = "CmdArgv_" + str(##a);
+				##a = ##a + 1;
+			}
+			$REG_VALUE[0] = $EXEHEADER + "tex.exe:" + $FMTHEADER + ":";
+			$REG_VALUE[1] = $EXEHEADER + "ptex.exe:" + $FMTHEADER + ":";
+			$REG_VALUE[2] = "pdftex.exe:-fmt=:";
+			$REG_VALUE[3] = "virjtex.exe:&:";
+			call _kernel_writeenumdatastr
+				$REG_K_PLATFORM+"\\"+$PNAME+"\\TeXware", 4;
+			message "ASCII-pTeX をご使用の方へ：\n\n" + 
+					"Ver.3.2.0 から NTT-JTeX のサポートを追加しました。\n" + 
+					"NTT-JTeX を使用したい時は doc/packages サブフォルダの\n" + 
+					"pTeX2.txt を参照して下さい。";
+		}
+		if( #REG_VERSION_OLD < 3 ){
+			//	Ver.3.3.0 からコンパイルエンジンの ID を固定しないように変更
+			call _kernel_writedatanum $REG_K_PLATFORM+"\\"+$PNAME+"\\TeXware",
+				"Num", 4;
+			##a = 0;
+			while( ##a < 4 ){
+				$REG_ENUM[##a] = str(##a);
+				##a = ##a + 1;
+			}
+			$REG_VALUE[0] = "TeX";
+			$REG_VALUE[1] = "pTeX";
+			$REG_VALUE[2] = "PDFTeX";
+			$REG_VALUE[3] = "NTT-JTeX";
+			call _kernel_writeenumdatastr
+				$REG_K_PLATFORM+"\\"+$PNAME+"\\TeXware", 4;
+		}
+	}
+	if( #INSTWARE & 4 ){
+		//	MkIdxware のバージョンアップ
+	}
+	if( #INSTWARE & 8 ){
+		//	BibTeXware のバージョンアップ
+	}
+
+	endmacro;
+
+//	End of Main
+

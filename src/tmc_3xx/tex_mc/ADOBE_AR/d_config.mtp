@@ -1,0 +1,99 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT
+//	PLATFORM			Adobe Acrobat Reader for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは Adobe Acrobat Reader 専用です。							//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$DVIWARE	=	"ADOBE_AR";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_PI_BASE	=	"Platform\\" + $DVIWARE + "\\DVIware";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+
+//	Main Routine
+main:
+	call _local_envconfig;
+	endmacro;
+
+//	End of Main
+
+_local_envconfig:
+	$REG_ENUM[0] = "BaseDir";
+	$REG_ENUM[1] = "CmdArgv";
+	$REG_ENUM[2] = "CmdOpt";
+	$REG_ENUM[3] = "TitleBarString";
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 4;
+	$BASEDIR		= $REG_VALUE[0];
+	$CMDARGV		= $REG_VALUE[1];
+	$CMDOPT			= $REG_VALUE[2];
+	$TITLEBARSTR	= $REG_VALUE[3];
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+	ddepoke "newdialog", "70," + 
+		getinistr($MSGINI,"DialogMessages","EnvConfig");
+	ddepoke "newcontrol", "text,,Acrobat Reader のフォルダ名";
+	ddepoke "part", "30";
+	ddepoke "newcontrol", "edit,BaseDir,"+$BASEDIR;
+	ddepoke "newcontrol", "text,,実行ファイル名";
+	ddepoke "part", "30";
+	ddepoke "newcontrol", "edit,CmdArgv,"+$CMDARGV;
+	ddepoke "newcontrol", "text,,オプション";
+	ddepoke "part", "30";
+	ddepoke "newcontrol", "edit,CmdOpt,"+$CMDOPT;
+	ddepoke "newcontrol", "text,,タイトルバー";
+	ddepoke "part", "30";
+	ddepoke "newcontrol", "edit,TitleBarString,"+$TITLEBARSTR;
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", "50";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		call _common_removelastsep dderequest("getstring BaseDir");
+		call _common_casechange 0, $$return;
+		$REG_VALUE[0] = $$return;
+		call _common_casechange 0, dderequest("getstring CmdArgv");
+		$REG_VALUE[1] = $$return;
+		$REG_VALUE[2] = dderequest("getstring CmdOpt");
+		$REG_VALUE[3] = dderequest("getstring TitleBarString");
+		call _kernel_writeenumdatastr $REG_K_PI_BASE, 4;
+	}
+	call _kernel_exitms;
+	return;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

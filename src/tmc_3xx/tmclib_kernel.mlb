@@ -1,0 +1,328 @@
+////	MODULE CONTROL KERNEL API	////
+//	Registry Access Functions
+_kernel_getdatastr:
+	openreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\" + $$1;
+	$$r = getregstr($$2);
+	closereg;
+	return $$r;
+
+#end_of_routine
+
+
+_kernel_getdatanum:
+	openreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\" + $$1;
+	##r = getregnum($$2);
+	closereg;
+	return ##r;
+
+#end_of_routine
+
+
+_kernel_getenumdatastr:
+	openreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\" + $$1;
+	while( ##2 ){
+		##2 = ##2 - 1;
+		$REG_VALUE[##2] = getregstr($REG_ENUM[##2]);
+	}
+	closereg;
+	return;
+
+#end_of_routine
+
+
+_kernel_getenumdatanum:
+	openreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\" + $$1;
+	while( ##2 ){
+		##2 = ##2 - 1;
+		#REG_VALUE[##2] = getregnum($REG_ENUM[##2]);
+	}
+	closereg;
+	return;
+
+#end_of_routine
+
+
+_kernel_writedatastr:
+	createreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\" + $$1;
+	writeregstr $$2, $$3;
+	closereg;
+	return;
+
+#end_of_routine
+
+
+_kernel_writedatanum:
+	createreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\" + $$1;
+	writeregnum $$2, ##3;
+	closereg;
+	return;
+
+#end_of_routine
+
+
+_kernel_writeenumdatastr:
+	createreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\" + $$1;
+	while( ##2 ){
+		##2 = ##2 - 1;
+		writeregstr $REG_ENUM[##2], $REG_VALUE[##2];
+	}
+	closereg;
+	return;
+
+#end_of_routine
+
+
+_kernel_writeenumdatanum:
+	createreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\" + $$1;
+	while( ##2 ){
+		##2 = ##2 - 1;
+		writeregnum $REG_ENUM[##2], #REG_VALUE[##2];
+	}
+	closereg;
+	return;
+
+#end_of_routine
+
+
+//	Message Handling Functions
+_kernel_showmenu:
+	$$ms = getinistr($MSGINI,"Menu","Sequence_"+$$1);
+	##len = strlen($$ms);
+	$$key = char(keypressed);
+	if( $$key != "" ){
+		if( strstr($$ms,$$key) + 1 ){
+			$$a = getinistr($MSGINI,"Menu",$$1+"_"+$$key);
+			return val( leftstr($$a,strstr($$a,":")) );
+		}
+	}
+	title "NOW LOADING MENU STRINGS...";
+	##a = 0;
+	while( ##a < ##len ){
+		$$key = midstr($$ms,##a,1);
+		if( $$key != "|" ){
+			$$m_str = getinistr($MSGINI,"Menu",$$1+"_"+$$key);
+			##s = strstr($$m_str,":");
+			##m_id[##a] = val(leftstr($$m_str,##s));
+			$$m_str = midstr($$m_str,##s+1,128);
+			##d = strstr($$m_str,"$");
+			while( ##d + 1 ){
+				$$m = midstr($$m_str,##d+1,1);
+				if( $$m != "$" ) $$m = $MENUARG[val($$m)];
+				$$m_str = leftstr($$m_str,##d) + $$m + 
+					midstr($$m_str,##d+2,128);
+				##d = strstr($$m_str,"$");
+			}
+			$$M[##a] = "(&" + $$key + ")\t" + $$m_str;
+		} else {
+			##m_id[##a] = -1;
+			$$M[##a] = "\t-------------------";
+		}
+		##a = ##a + 1;
+	}
+	title 0;
+	menuarray $$M, ##len;
+	if( !result ) return 0;
+	else return ##m_id[result - 1];
+
+#end_of_routine
+
+
+_kernel_showmsg:
+	$$t = getinistr($MSGINI,"Messages",$$2);
+	##l = strlen($$t);
+	$$s = "";
+	while( 1 ){
+		##d = strstr($$t,"$");
+		if( ##d != -1 ){
+			$$s = $$s + leftstr($$t,##d);
+			$$m = midstr($$t,##d+1,1);
+			if( $$m == "n" ) $$s = $$s + "\n";
+			else if( $$m == "$" ) $$s = $$s + "$";
+			else $$s = $$s + $MSGARG[val($$m)];
+			$$t = midstr($$t,##d+2,##l);
+		} else {
+			$$s = $$s + $$t;
+			break;
+		}
+	}
+	beep;
+	if( ##1 ) question $$s;
+	else message $$s;
+	return result;
+
+#end_of_routine
+
+
+//	Application Handling Functions
+_kernel_runapp:
+	runsync2 $$1;	//	ˆø”‚ðŠÜ‚Þ‰Â”\«‚ª‚ ‚é‚½‚ß "\""+$$1+"\"" ‚Í~
+	if( !result ){
+		$MSGARG[0] = $$1;
+		call _kernel_showmsg 0, "Error_Module_ExeOpen";
+		##r = 0;
+	} else ##r = 1;
+	return ##r;
+
+#end_of_routine
+
+
+//	Macro Server Handling Functions
+_kernel_runms:
+	if( $MS_DIR == "" ){
+		call _kernel_getdatastr $REG_K_MACROCONFIG+"\\MacroServer", "BaseDir";
+		$MS_DIR = $$return;
+		call _kernel_getdatanum $REG_K_MACROCONFIG+"\\MacroServer", "QuitMS";
+		#MS_QUIT = ##return;
+	}
+	run "\"" + $MS_DIR + "\\macserv.exe\"";	//	$MS_DIR ‚ª‹ó”’‚ðŠÜ‚ñ‚Å‚à‚n‚j
+	if( !result ){
+		$MSGARG[0] = $MS_DIR + "\\macserv.exe";
+		call _kernel_showmsg 0, "Error_Module_ExeOpen";
+		return 0;
+	}
+	ddeinitiate "HideMacroServer", "AllService";
+	if( !result ){
+		$MSGARG[0] = "Macro Server";
+		call _kernel_showmsg 0, "Error_Module_DDEInit";
+		return 0;
+	}
+	return 1;
+
+#end_of_routine
+
+
+_kernel_exitms:
+	if( !#MS_QUIT ) ddeterminate;
+	else ddeexecute "exit";
+	return;
+
+#end_of_routine
+
+
+_kernel_makedlg:
+	ddeexecute "dialog " + str(hidemaruhandle( 0 ));
+	$name = "";
+	ddestartadvice "dlgresult", $name;
+	while( $name == "" ){
+		ddewaitadvice $name, 999;
+	}
+	ddestopadvice "dlgresult";
+	ddeexecute "enddialog";
+	return $name;
+
+#end_of_routine
+
+
+//	Hidemaru-Window Handling Functions
+_kernel_openhm:
+	##hwnd = hidemaruhandle( 0 );
+	openfile $OPTIONS;
+	loadfile $$1;	//	‹ó”’‚ðŠÜ‚ñ‚Å‚¢‚Ä‚à‚n‚j
+	if( !result ) return 0;
+	##hwnd_new = hidemaruhandle( 0 );
+	if( (!##hwnd_new) || ##hwnd_new == ##hwnd ){
+		##hwnd_new = hidemaruhandle(findhidemaru($$1));
+		if( !##hwnd_new ){
+			$MSGARG[0] = $$1;
+			call _kernel_showmsg 0, "Error_Hidemaru_Open";
+			return 0;
+		}
+	}
+	return ##hwnd_new;
+
+#end_of_routine
+
+
+_kernel_activatehm:
+	##a = 0;
+	while( ##a < 2 ){
+		setactivehidemaru ##1;
+		if( hidemaruhandle( 0 ) == ##1 ) return 1;
+		##a = ##a + 1;
+	}
+	call _kernel_showmsg 0, "Error_Hidemaru_Activate";
+	return 0;
+
+#end_of_routine
+
+
+_kernel_closehm:
+	closehidemaruforced ##1;
+	if( !result ){
+		if( sendmessage( ##1, 0x0112, 0xF060, 0 ) ){
+			call _kernel_showmsg 0, "Error_Hidemaru_Close";
+			return 0;
+		}
+	} else return 1;
+
+#end_of_routine
+
+
+_kernel_openlogfile:
+	if( findhidemaru($$1) != -1 ) setactivehidemaru findhidemaru($$1);
+	else openfile "\"" + $$1 + "\"";	//	‹ó”’‘Îô(^^;
+	if (!result) return 0;
+	$$s_buf = searchbuffer; ##s_opt = searchoption;
+	gofiletop;
+	searchdown "^\\?[ \\t]*[exq]", regular;
+	if (result) searchup "^!", regular;
+	else gofileend;
+	escape;
+	setsearch $$s_buf, ##s_opt;
+	return 1;
+
+#end_of_routine
+
+
+//	Macro Handling Functions
+_kernel_getmacrodir:
+	$$d = getinistr("hidemaru.ini","Env","MacroPath");
+	if( $$d == "" ) $$d = hidemarudir;
+	if( rightstr($$d,1) == "\\" ) $$d = leftstr($$d,strlen($$d)-1);
+	return $$d;
+
+#end_of_routine
+
+
+_kernel_execmacro:
+	$$f = $MACRODIR + "\\" + $$1;
+	if( !existfile($$f) ){
+		message $$f + "\nŽw’è‚³‚ê‚½ƒ}ƒNƒ‚Í‘¶Ý‚µ‚Ü‚¹‚ñB";
+		return 0;
+	}
+	execmacro $$f;
+	return 1;
+
+#end_of_routine
+
+
+//	Execution Code Handling Functions
+_kernel_write_execcmd:
+	writeininum $DYNINI, $DYN_MODULECMD, "ExecCmd", ##1;
+	return;
+
+#end_of_routine
+
+
+_kernel_get_execcmd:
+	return getininum($DYNINI,$DYN_MODULECMD,"ExecCmd");
+
+#end_of_routine
+
+
+//	Debugging Handling Functions
+_debug_writelog:
+	if( $DBGINI == "" ){
+		openreg "CURRENTUSER", "Software\\" + $REG_ROOT+"\\DebugInfo";
+		$DBGINI = getregstr("DebugOutput");
+		closereg;
+		if( $DBGINI == "" ){
+			message "Debugging Error: Debug Output File is not Defined.";
+			return;
+		}
+	}
+	writeinistr $DBGINI, "Event_Log", str(tickcount)+"_("+$MACRONAME+")", $$1;
+	return;
+
+#end_of_routine
+

@@ -1,0 +1,145 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				INSTALLATION MANAGEMENT
+//	PLATFORM			ASCII-pTeX 2.1.X (GUI-Shell)
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは pTeX GUI SHELL 専用です。									//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"pTeX2GUI";
+
+//	レジストリキーの定義
+#REG_VERSION			=	%VER_MINOR%;
+$REG_ROOT				=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION			=	"VersionInfo";
+$REG_K_MACROCONFIG		=	"MacroConfig";
+$REG_K_PLATFORM			=	"Platform\\" + $PNAME;
+$REG_K_P_TEXWARE		=	$REG_K_PLATFORM + "\\TeXware";
+$REG_K_P_DVIWARE		=	$REG_K_PLATFORM + "\\DVIware";
+$REG_K_P_MKIDXWARE		=	$REG_K_PLATFORM + "\\MkIdxware";
+$REG_K_P_BIBTEXWARE		=	$REG_K_PLATFORM + "\\BibTeXware";
+$REG_K_FORMAT			=	"FormatMenu";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	文字列定義Iniファイル
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	補助ツールのフォルダ名及びツール起動時のコマンドライン
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$LFNCMD		=	"\"" + $TOOLDIR + "\\getlfn.exe\" ";
+$LFNINI		=	$TOOLDIR + "\\getlfn.ini";
+$MKFMTDBCMD	=	"\"" + $TOOLDIR + "\\mkfmtdb.exe\" ";
+
+
+main:
+	call _kernel_getdatastr $REG_K_PLATFORM, "PlatformName";
+	$SP_PNAME = $$return;
+	call _kernel_getdatanum $REG_K_PLATFORM, "InstalledWareFlag";
+	#INST_SP_PTYPE = ##return;
+
+	if( !(#INST_SP_PTYPE&1) ){
+		openreg "CURRENTUSER", "Software\\OTOBE\\bwpvtex\\Settings";
+		$BASEDIR_VIRTEX = getregstr("path");
+		closereg;
+		call _common_removelastsep $BASEDIR_VIRTEX;
+		$BASEDIR_VIRTEX = $$return;
+		if( !existfile($BASEDIR_VIRTEX+"\\bwpvtex.exe") ){
+			_input_folder_virtex:
+			call _install_inputfoldername "pTeX GUI-SHELL", $BASEDIR_VIRTEX;
+			if( $$return != "" ) $BASEDIR_VIRTEX = $$return;
+			else {
+				$MSGARG[0] = "VirTeX";
+				call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+				if( ##return ) goto _makeindex;
+				else goto _input_folder_virtex;
+			}
+		}
+		call _install_getlongfilename $BASEDIR_VIRTEX+"\\foo.txt";
+		$BASEDIR_VIRTEX = $DIRECTORY;
+
+		openreg "CURRENTUSER", "Software\\OTOBE\\bwpitex\\Settings";
+		$INITEX = getregstr("virtex");
+		$TEXMF = getregstr("TEXMF");
+		closereg;
+		if( leftstr($INITEX,3) != "ini" ){
+			##ptexversion = 5;
+			$$f_dir = "web2c";
+		} else {
+			##ptexversion = 4;
+			$$f_dir = "ini";
+		}
+		call _common_removelastsep $TEXMF;
+		$TEXMF = $$return + "\\";
+
+		title $SP_PNAME + " 構成情報の書き込み中...";
+		$REG_ENUM[0] = "BaseDir";
+		$REG_ENUM[1] = "FormatDir";
+		$REG_VALUE[0] = $BASEDIR_VIRTEX;
+		$REG_VALUE[1] = $TEXMF + $$f_dir;
+		call _kernel_writeenumdatastr $REG_K_P_TEXWARE, 2;
+		call _kernel_writedatanum $REG_K_P_TEXWARE, "pTeX_MinorVersion",
+			##ptexversion;
+		call _kernel_runapp $MKFMTDBCMD + "ptex2gui";
+		title 0;
+		#INST_SP_PTYPE = #INST_SP_PTYPE|1;
+	} else {
+		call _kernel_getdatastr $REG_K_P_TEXWARE, "BaseDir";
+		$BASEDIR_VIRTEX = $$return;
+	}
+
+	_makeindex:
+	if( !(#INST_SP_PTYPE&4) ){
+		call _local_wareconfig "WinMkIdx","winmkidx.exe",$REG_K_P_MKIDXWARE,4;
+	}
+
+	_bibtex:
+	if( !(#INST_SP_PTYPE&8) ){
+		call _local_wareconfig "WBibTeX","wbibtex.exe",$REG_K_P_BIBTEXWARE,8;
+	}
+
+	call _install_exitinstall 0;
+	endmacro;	//	Not Reached.
+
+//	End of Main
+
+
+_local_wareconfig:
+	if( !existfile($BASEDIR_VIRTEX+"\\"+$$2) ){
+		_input_folder_config:
+		call _install_inputfoldername $$1, $BASEDIR_VIRTEX;
+		if( $$return == "" ){
+			$MSGARG[0] = $$1;
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) return;
+			else goto _input_folder_config;
+		}
+		call _install_getlongfilename $$return;
+		$$basedir = $DIRECTORY;
+	} else $$basedir = $BASEDIR_VIRTEX;
+	title $SP_PNAME + " 構成情報の書き込み中...";
+	call _kernel_writedatastr $$3, "BaseDir", $$basedir;
+	title 0;
+	#INST_SP_PTYPE = #INST_SP_PTYPE|##4;
+	return;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

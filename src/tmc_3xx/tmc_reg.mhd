@@ -1,0 +1,28 @@
+#REG_VERSION	=	1;
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+!ifdef	macro
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+!endif
+!ifdef	platform
+$REG_K_PLATFORM	=	"Platform";
+!endif
+!ifdef	format
+$REG_K_FORMAT	=	"FormatMenu";
+!endif
+!ifdef	project
+$REG_K_PROJECT	=	"ProjectInfo";	//	プロジェクト登録サブキー
+!endif
+!ifdef	version
+$REG_K_VERSION	=	"VersionInfo";
+!endif
+
+!ifndef	noregcheck
+//	Check Registry Version for avoiding destructive change of data.
+call _kernel_getdatanum "", "Reg_Version";
+if( #REG_VERSION != ##return ){
+	call _kernel_showmsg 0, "Error_InvalidMacroCall";
+	endmacro;
+}
+
+!endif
+

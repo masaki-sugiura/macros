@@ -1,0 +1,225 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT
+//	PLATFORM			ASCII-pTeX 2.1.X (GUI-Shell)
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは pTeX GUI SHELL 専用です。									//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$TEXWARE	=	"pTeX2GUI";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_PI_BASE	=	"Platform\\" + $TEXWARE + "\\TeXware";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+#TYPE_NUM = 4;
+$TEXWARE_NAME[0] = "TeX";
+$TEXWARE_NAME[1] = "pTeX";
+$TEXWARE_NAME[2] = "PDFTeX";
+$TEXWARE_NAME[3] = "NTT-JTeX";
+
+//	Main Routine
+main:
+	menu	"(&D)\tフォルダ/ファイル名関連の設定",
+			"(&F)\tフォーマットファイル関連の設定",
+			"(&P)\t動作定義パラメータ関連の設定";
+	if( !result ) endmacro;
+	else if( result == 1 ) call _local_envconfig;
+	else if( result == 2 ) call _local_formatconfig;
+	else if( result == 3 ) call _local_paramconfig;
+	goto main;
+
+//	End of Main
+
+_local_envconfig:
+	$REG_ENUM[0]	=	"BaseDir";
+	$REG_ENUM[1]	=	"FormatDir";
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 2;
+	$DIR[0]	=	$REG_VALUE[0];
+	$DIR[1]	=	$REG_VALUE[1];
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+
+	ddepoke "newdialog", "60," + 
+		getinistr($MSGINI,"DialogMessages","EnvConfig");
+	##a = 0;
+	while( ##a < 2 ){
+		ddepoke "newcontrol", "text,," + 
+			getinistr($MSGINI,"DialogMessages","Directory_"+str(##a));
+		ddepoke "part", "30";
+		ddepoke "newcontrol", "edit,Dir_" + str(##a) + "," + $DIR[##a];
+		##a = ##a + 1;
+	}
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", "40";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		##a = 0;
+		while( ##a < 2 ){
+			call _common_removelastsep dderequest("getstring Dir_"+str(##a));
+			call _common_casechange 0, $$return;
+			$REG_VALUE[##a] = $$return;
+			##a = ##a + 1;
+		}
+		call _kernel_writeenumdatastr $REG_K_PI_BASE, 2;
+	}
+	call _kernel_exitms;
+	return;
+
+_local_formatconfig:
+	menu	"(&T)\tvirtex の種類の設定",
+			"(&R)\tフォーマットメニューの再構築";
+	if( !result ) return;
+	else if( result == 1 ){
+		call _kernel_getdatanum $REG_K_PI_BASE, "EnableChangeReg";
+		if( !##return ) call _kernel_showmsg 0,"Error_Config_DisableChangeReg";
+		else call _local_changevirtextype;
+	} else runsync2 "\"" + $MACRODIR + "\\tools\\mkfmtdb.exe\" ptex2gui";
+	return;
+
+_local_changevirtextype:
+	$REG_K_FORMAT = "FormatMenu\\" + $TEXWARE;
+	call _kernel_getdatanum $REG_K_FORMAT, "Num";
+	##num = ##return;
+	##a = 0;
+	while( ##a < ##num ){
+		$REG_ENUM[##a] = str(##a);
+		##a = ##a + 1;
+	}
+	call _kernel_getenumdatastr $REG_K_FORMAT, ##num;
+
+	$$type = "";
+	##a = 0;
+	while( ##a < #TYPE_NUM ){
+		$$type = $$type + str(##a) + ":" + $TEXWARE_NAME[##a] + " ";
+		##a = ##a + 1;
+	}
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+	ddepoke "newdialog", "60," + 
+		getinistr($MSGINI,"DialogMessages","TeXTypeTitle");
+	ddepoke "newcontrol", "text,," + 
+		getinistr($MSGINI,"DialogMessages","TeXTypeMessage");
+	##a = 0;
+	while( ##a < ##num ){
+		ddepoke "newcontrol", "text,," + 
+			midstr($REG_VALUE[##a],strstr($REG_VALUE[##a],":")+1,256);
+		ddepoke "part", "15";
+		ddepoke "newcontrol", "edit,Type_" + str(##a) + "," + 
+			leftstr($REG_VALUE[##a],1);
+		ddepoke "part", "3";
+		ddepoke "newcontrol", "text,," + $$type;
+		##a = ##a + 1;
+	}
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		##a = 0;
+		while( ##a < ##num ){
+			$$t_type = dderequest("getstring Type_"+str(##a));
+			if( (strlen($$t_type)!=1) || (!(strstr("0123",$$t_type)+1)) ){
+				$MSGARG[0] = $$mn;
+				call _kernel_showmsg 0, "Error_Config_noFileSelect";
+				__menu:
+				menu	"(&T)\t(vir)tex.exe",
+						"(&P)\t(vir)ptex.exe",
+						"(&D)\tpdftex.exe",
+						"(&N)\tvirjtex.exe";
+				if( !result ){
+					call _kernel_showmsg 0, "Error_Config_SelectForced";
+					goto __menu;
+				} else $$t_type = str(result-1);
+			}
+			$REG_VALUE[##a] = $$t_type + midstr($REG_VALUE[##a],1,256);
+			##a = ##a + 1;
+		}
+		call _kernel_writeenumdatastr $REG_K_FORMAT, ##num;
+	}
+	call _kernel_exitms;
+	return;
+
+_local_paramconfig:
+	$REG_ENUM[0] = "QuitTeX";
+	$REG_ENUM[1] = "EnableChangeReg";
+	$REG_ENUM[2] = "pTeX_MinorVersion";
+	call _kernel_getenumdatanum $REG_K_PI_BASE, 3;
+	#QUITTEX = #REG_VALUE[0];
+	#ENBLCHREG = #REG_VALUE[1];
+	#PTEXVERSION = #REG_VALUE[2];
+	if( #PTEXVERSION < 4 ) #PTEXVERSION = 4;
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+
+	ddepoke "newdialog", "30," + 
+		getinistr($MSGINI,"DialogMessages","ParamConfig");
+	ddepoke "newcontrol", "check,EnableChangeReg," + 
+		getinistr($MSGINI,"DialogMessages","EnableChangeReg");
+	ddepoke "default", str(#ENBLCHREG);
+	ddepoke "newcontrol", "radio,QuitTeX," + 
+		getinistr($MSGINI,"DialogMessages","QuitTeXTitle");
+	##a = 0;
+	while( ##a < 3 ){
+		ddepoke "item",getinistr($MSGINI,"DialogMessages","QuitTeX_"+str(##a));
+		##a = ##a + 1;
+	}
+	ddepoke "default", str(#QUITTEX+1);
+	ddepoke "newcontrol", "radio,pTeX_MinorVersion,pTeX のバージョン";
+	ddepoke "item", "2.1.4";
+	ddepoke "item", "2.1.5(以降)";
+	ddepoke "default", str(#PTEXVERSION-3);
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		#REG_VALUE[0] = val(dderequest("getstate QuitTeX")) - 1;
+		#REG_VALUE[1] = val(dderequest("getstate EnableChangeReg"));
+		#REG_VALUE[2]
+			= val(dderequest("getstate pTeX_MinorVersion")) + 3;
+		call _kernel_writeenumdatanum $REG_K_PI_BASE, 3;
+	}
+	call _kernel_exitms;
+	return;
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

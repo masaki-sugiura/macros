@@ -1,0 +1,171 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				INSTALLATION MANAGEMENT
+//	PLATFORM			TeX for Windows
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロはインプレスラボの TeX for Windows 専用です。					//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"WinTeX";
+
+//	レジストリキーの定義
+#REG_VERSION			=	%VER_MINOR%;
+$REG_ROOT				=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION			=	"VersionInfo";
+$REG_K_MACROCONFIG		=	"MacroConfig";
+$REG_K_PLATFORM			=	"Platform\\" + $PNAME;
+$REG_K_P_TEXWARE		=	$REG_K_PLATFORM + "\\TeXware";
+$REG_K_P_DVIWARE		=	$REG_K_PLATFORM + "\\DVIware";
+$REG_K_P_MKIDXWARE		=	$REG_K_PLATFORM + "\\MkIdxware";
+$REG_K_P_BIBTEXWARE		=	$REG_K_PLATFORM + "\\BibTeXware";
+$REG_K_FORMAT			=	"FormatMenu";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	文字列定義Iniファイル
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	補助ツールのフォルダ名及びツール起動時のコマンドライン
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$MKFMTDBCMD	=	"\"" + $TOOLDIR + "\\mkfmtdb.exe\" ";
+$LFNCMD		=	"\"" + $TOOLDIR + "\\getlfn.exe\" ";
+$LFNINI		=	$TOOLDIR + "\\getlfn.ini";
+
+main:
+	call _kernel_getdatastr $REG_K_PLATFORM, "PlatformName";
+	$SP_PNAME = $$return;
+	call _kernel_getdatanum $REG_K_PLATFORM, "InstalledWareFlag";
+	#INST_SP_PTYPE = ##return;
+
+	if( !(#INST_SP_PTYPE&1) ){
+		call _common_casechange 0,
+			getinistr("wintex.ini","Environ","TEXDOCUMENTS");
+		##s = strstr($$return,"\\digital");
+		if( ##s + 1 ) $BASEDIR_VIRTEX = leftstr($$return,##s) + "\\bin";
+		else $BASEDIR_VIRTEX = leftstr(hidemarudir,3) + "wintex\\bin";
+		if( (!existfile($BASEDIR_VIRTEX+"\\wpvtex.exe")) &&
+			(!existfile($BASEDIR_VIRTEX+"\\bwpvtex.exe")) ){
+			_input_folder_virtex:
+			call _install_inputfoldername "WPVTEX", $BASEDIR_VIRTEX;
+			if( $$return != "" ) $BASEDIR_VIRTEX = $$return;
+			else {
+				$MSGARG[0] = "WPVTEX";
+				call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+				if( ##return ) goto _windvi;
+				else goto _input_folder_virtex;
+			}
+		}
+		call _install_getlongfilename $BASEDIR_VIRTEX+"\\foo.txt";
+		$BASEDIR_VIRTEX = $DIRECTORY;
+
+		call _common_removelastsep 
+			getinistr("wintex.ini","Environ","TEXFORMATS");
+		call _common_casechange 0, $$return;
+		$FORMATDIR = $$return;
+
+		title $SP_PNAME + " 構成情報の書き込み中...";
+		$REG_ENUM[0] = "BaseDir";
+		$REG_ENUM[1] = "FormatDir";
+		$REG_VALUE[0] = $BASEDIR_VIRTEX;
+		$REG_VALUE[1] = $FORMATDIR;
+		call _kernel_writeenumdatastr $REG_K_P_TEXWARE, 2;
+		call _kernel_runapp $MKFMTDBCMD + "wintex";
+		title 0;
+		#INST_SP_PTYPE = #INST_SP_PTYPE|1;
+	} else {
+		call _kernel_getdatastr $REG_K_P_TEXWARE, "BaseDir";
+		$BASEDIR_VIRTEX = $$return;
+	}
+
+	_windvi:
+	if( !(#INST_SP_PTYPE&2) ){
+		$REG_ENUM[0] = "BaseDir";
+		$REG_ENUM[1] = "CmdArgv_0";
+		$REG_ENUM[2] = "CmdArgv_1";
+		$REG_ENUM[3] = "CmdArgv_2";
+		$REG_VALUE[0] = $BASEDIR_VIRTEX;
+		$REG_VALUE[1] = "windvi32.exe:WinDvi32";
+		$REG_VALUE[2] = "wdvip32.exe:WinDvi32PRO";
+		$REG_VALUE[3] = "wdvip32.exe:WinDvi32PRO/DEMO";
+		##a = 1;
+		while( ##a < 3 ){
+			if( existfile($REG_VALUE[0]+"\\"+
+					leftstr($REG_VALUE[##a], strstr($REG_VALUE[##a],":")))
+				) break;
+			##a = ##a + 1;
+		}
+		if( ##a == 3 ){
+			_input_folder_windvi:
+			call _install_inputfoldername "WinDvi", $BASEDIR_VIRTEX;
+			if( $$return == "" ){
+				$MSGARG[0] = "WinDvi";
+				call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+				if( ##return ) goto _makeindex;
+				else goto _input_folder_windvi;
+			}
+			call _install_getlongfilename $$return+"\\foo.txt";
+			$REG_VALUE[0] = $DIRECTORY;
+		}
+		title $SP_PNAME + " 構成情報の書き込み中...";
+		call _kernel_writeenumdatastr $REG_K_P_DVIWARE, 4;
+		title 0;
+		#INST_SP_PTYPE = #INST_SP_PTYPE|2;
+	}
+
+	_makeindex:
+	if( !(#INST_SP_PTYPE&4) ){
+		call _local_wareconfig "WinMkIdx","winmkidx.exe",$REG_K_P_MKIDXWARE,4;
+	}
+
+	_bibtex:
+	if( !(#INST_SP_PTYPE&8) ){
+		question "WinBibTeX を持っていますか？";
+		if( !result ) call _install_exitinstall 0;
+		call _local_wareconfig "WBibTeX","wbibtex.exe",$REG_K_P_BIBTEXWARE,8;
+	}
+
+	call _install_exitinstall 0;
+	endmacro;	//	Not Reached.
+
+//	End of Main
+
+
+_local_wareconfig:
+	if( !existfile($BASEDIR_VIRTEX+"\\"+$$2) ){
+		_input_folder_config:
+		call _install_inputfoldername $$1, $BASEDIR_VIRTEX;
+		if( $$return == "" ){
+			$MSGARG[0] = $$1;
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) return;
+			else goto _input_folder_config;
+		}
+		call _install_getlongfilename $$return+"\\foo.txt";
+		$$basedir = $DIRECTORY;
+	} else $$basedir = $BASEDIR_VIRTEX;
+	title $SP_PNAME + " 構成情報の書き込み中...";
+	call _kernel_writedatastr $$3, "BaseDir", $$basedir;
+	title 0;
+	#INST_SP_PTYPE = #INST_SP_PTYPE|##4;
+	return;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

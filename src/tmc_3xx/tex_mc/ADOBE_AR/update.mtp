@@ -1,0 +1,69 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				UPDATING MANAGEMENT
+//	PLATFORM			Adobe Acrobat Reader for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは Adobe Acrobat Reader 専用です。							//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"ADOBE_AR";
+
+//	レジストリキー名
+#REG_VERSION	=	%VER_MINOR%;
+$REG_ROOT	=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION	=	"VersionInfo";
+$REG_K_PLATFORM	=	"Platform";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	INI ファイル
+$MSGINI		=	$MACRODIR + "\\message.ini";
+
+
+main:
+	call _kernel_getdatanum $REG_K_PLATFORM+"\\"+$PNAME, "InstalledWareFlag";
+	if( !##return ) endmacro;
+
+	call _kernel_getdatastr $REG_K_PLATFORM+"\\"+$PNAME, "MacroVersion";
+	if( $$return != "" ) $OLDVERSION = $$return;
+	else {
+		call _kernel_getdatastr $REG_K_VERSION, "MacroVersion";
+		$OLDVERSION = $$return;
+	}
+	#REG_VERSION_OLD = val(midstr($OLDVERSION,2,1));
+	#REVISION_OLD = val(midstr($OLDVERSION,4,2));
+
+	if ((#REG_VERSION_OLD <= 3) && (#REVISION_OLD < 5)) {
+		//	Ver.3.3.5 から DVI_PS のデータ形式を変更
+		message "ADOBE_AR パッケージの Ver.3.3.5 以降から\n" + 
+				"設定の保存方法が変更されました。\n" + 
+				"デフォルト設定に戻しますので、\n" + 
+				"設定を変更された方はお手数ですがもう一度\n" + 
+				"変更をやり直して下さいm(_ _)m。";
+		$REG_ENUM[0] = "CmdArgv";
+		$REG_ENUM[1] = "CmdOpt";
+		$REG_VALUE[0] = "acrord32.exe";
+		$REG_VALUE[1] = "\"$f\\$s.pdf\"";
+		call _kernel_writeenumdatastr $REG_K_PLATFORM+"\\"+$PNAME+"\\DVIware", 2;
+	}
+
+	endmacro;
+
+//	End of Main
+

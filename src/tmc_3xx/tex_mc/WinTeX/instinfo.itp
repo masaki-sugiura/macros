@@ -1,0 +1,27 @@
+;
+;	「TeX for Windows ～ 日本語 TeX 統合環境」付属のモジュール用
+;	サポートマクロセット
+;
+
+[Info]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+ExternalName=TeX for Windows
+InternalName=WinTeX
+DetectionMethod=i:wintex.ini
+SupportedWareFlag=15
+
+[Files]
+FileNum=12
+FILE_0=\WinTeX\virtex.mac
+FILE_1=\WinTeX\preview.mac
+FILE_2=\WinTeX\makeidx.mac
+FILE_3=\WinTeX\bibtex.mac
+FILE_4=\WinTeX\t_config.mac
+FILE_5=\WinTeX\d_config.mac
+FILE_6=\WinTeX\m_config.mac
+FILE_7=\WinTeX\b_config.mac
+FILE_8=\WinTeX\install.mac
+FILE_9=\WinTeX\instinfo.ini
+FILE_10=\tools\wtxccchk.exe
+FILE_11=\tools\mkfmtdb.exe
+

@@ -1,0 +1,61 @@
+    +-------------------------------------------------------------------+
+    |    Macro Package for TeX Module Control with HIDEMARU MACRO       |
+    |                                  ADOBE_AR Package Information     |
+    +-------------------------------------------------------------------+
+
+
+  【０】  概要
+
+    Adobe Acrobat Reader 3.0J を、秀丸マクロから直接操作します。
+    ※  PDFTeX をインストールしていない場合は無意味(^^;ですが。
+
+
+  【１】  パッケージ名 etc.
+
+    ・パッケージ名            ：  ADOBE_AR
+    ・メニューでの名前        ：  Adobe Acrobat Reader
+    ・基本マクロのバージョン  ：  3.3.0 以上が必要
+
+
+  【２】  このマクロから操作できるモジュール(の実行ファイル名)
+
+    ・Previewer モジュール  ：  acrord32.exe
+
+
+  【３】  ソフトウェアの検出方法
+
+    レジストリの HKEY_CLASSES_ROOT\SOFTWARE\Adobe\AcrobatReader\InstallPath
+    キーが存在した場合、ソフトウェアがインストールされていると判断します。
+
+
+  【４】  設定メニューの項目
+
+    ＊  DVI ware(Previewer モジュール)
+
+      [フォルダ/ファイル名関連の設定]
+
+        ・Acrobat Reader のフォルダ名：(REG_SZ:"BaseDir")
+          下記の実行ファイルのあるフォルダ名を記入します。
+
+        ・実行ファイル名：(REG_SZ:"CmdArgv")
+          Acrobat Reader の実行ファイル名を記入します。
+
+        ・オプション：(REG_SZ:"CmdOpt")
+          コマンドラインオプション(ファイル名を含む)を記入します。
+          ここで、"$" で始まる文字列は以下のような特殊な意味を持ちます。
+
+            $f  : PDF ファイルのあるフォルダ名(最後に "\" がつかない)
+            $s  : PDF ファイルの拡張子を除いたファイル(ベース)名
+            $!  : TeX ware が出力したファイル名(PDFTeX なら $s.pdf, それ
+                  以外は $s.dvi に等しい)
+            $$  : "$" それ自身
+
+            例：「"$f\$s.pdf"」
+
+        ・タイトルバー：(REG_SZ:"TitleBarString")
+          Acrobat Reader のウィンドウのタイトルバーの文字列を記入します(上記
+          の特殊な意味を持つ文字列が使用できます)。既に起動している Acrobat
+          Reader を探すために使用しますので、意味の分からない方は変更しないよ
+          うにして下さい。
+
+

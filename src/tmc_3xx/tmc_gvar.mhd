@@ -1,0 +1,17 @@
+!ifndef	nomacrodir
+//	Macro Config Information
+call _kernel_getdatastr $REG_K_MACROCONFIG, "MacroDir";
+$MACRODIR = $$return;
+
+!endif
+!ifndef	nomessage
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+!endif
+$TOOLDIR =	$MACRODIR + "\\tools";
+!ifndef	nogetlfn
+$LFNCMD	=	$TOOLDIR + "\\getlfn.exe -f:";
+$LFNINI	=	$TOOLDIR + "\\getlfn.ini";
+!endif
+

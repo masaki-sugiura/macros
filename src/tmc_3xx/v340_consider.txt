@@ -1,0 +1,17 @@
+
+* translator
+    [ TeX ]     [ DVI ]     [ PS ]      [ PDF ]
+    [ TeX    ->   DVI ]                             :   (p)tex, (p)latex
+    [ TeX                ->               PDF ]     :   pdftex, pdflatex
+                [ DVI    ->   PS ]                  :   dvips, dvi2ps
+                [ DVI          ->         PDF ]     :   dvipdfm
+                            [ PS    ->    PDF ]     :   ps2pdf
+
+	+ New Property
+		* OutputExt
+
+* previewer
+    [ DVI previewer ]   :   dviout
+    [ PS previewer ]    :   gsview32
+    [ PDF previewer ]   :   acrord32
+

@@ -1,0 +1,123 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				MODULE CONTROL MICRO KERNEL
+//	PLATFORM			ASCII-pTeX 2.1.X (Console)
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは ASCII-pTeX 専用です。										//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$MKIDXWARE	=	"pTeX2";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Definition of return code from module control micro-kernel
+//		マクロからの戻り値の定義
+//
+#RETURN_COMPLETE	=	  0;		//	コンパイルが正常に終了
+#RETURN_ERROR		=	255;		//	コンパイル実行エラー
+
+//	Base registry path
+//		レジストリのパス名の定義
+//
+$REG_ROOT = "Sugi_Macro\\TeXModuleControl";	//	マクロのルートキー
+$REG_K_PI_BASE = "Platform\\" + $MKIDXWARE + "\\MkIdxware";
+	//	プラットフォームのサブキー
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Dynamic Data Information
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_MC_RETURN	=	"return_makeidx";	//	モジュールの戻り値
+$DYN_PROJECT	=	"CurrentProjectInfo";
+
+//	Current Project Information
+//		コンパイル対象ファイルの情報
+//
+$FILENAME	=	getinistr($DYNINI,$DYN_PROJECT,"FileName");
+$SHORTNAME	=	getinistr($DYNINI,$DYN_PROJECT,"ShortName");
+$PROJECTDIR	=	getinistr($DYNINI,$DYN_PROJECT,"ProjectDir");
+
+//----------------------------------//
+//	Platform dependent codes		//
+//----------------------------------//
+
+////////	TeXware Information (of ASCII-pTeX)
+$REG_ENUM[0] = "BaseDir";
+$REG_ENUM[1] = "ExeName";
+call _kernel_getenumdatastr $REG_K_PI_BASE, 2;
+$CMDARGV = "\"" + $REG_VALUE[0] + "\\" + $REG_VALUE[1] + "\"";	//	空白ＯＫ
+$KEY_NUM[0] = "Letter";
+$KEY_NUM[1] = "PageForm";
+$KEY_NUM[2] = "Blank";
+$KEY_NUM[3] = "JapaneseHead";
+$KEY_NUM[4] = "ForceKanji";
+$PARAM_NUM = "lrcgf";
+$KEY_STR[0] = "Style";
+$KEY_STR[1] = "Output";
+$KEY_STR[2] = "Dic";
+$KEY_STR[3] = "Log";
+$KEY_STR[4] = "Start";
+$PARAM_STR = "sodtp";
+##a = 0;
+while( ##a < 5 ){
+	$REG_ENUM[##a] = $KEY_NUM[##a];
+	##a = ##a + 1;
+}
+call _kernel_getenumdatanum $REG_K_PI_BASE, 5;
+##a = 0;
+while( ##a < 5 ){
+	$REG_ENUM[##a] = $KEY_STR[##a];
+	##a = ##a + 1;
+}
+call _kernel_getenumdatastr $REG_K_PI_BASE, 5;
+$OPT_FLAG = " -";
+$OPT_STR = "";
+##a = 0;
+while( ##a < 5 ){
+	if( #REG_VALUE[##a] ) $OPT_FLAG = $OPT_FLAG + midstr($PARAM_NUM,##a,1);
+	if( $REG_VALUE[##a] != "" )
+		$OPT_STR = $OPT_STR + " -" + midstr($PARAM_STR,##a,1) + " " + 
+			$REG_VALUE[##a];
+	##a = ##a + 1;
+}
+if( $OPT_FLAG == " -" ) $OPT_FLAG = "";
+
+//	Start Main Routine
+main:
+	call _kernel_runapp $CMDARGV + $OPT_FLAG + $OPT_STR + " \"" +
+		$PROJECTDIR+"\\"+$SHORTNAME+".idx\"";	//	空白ＯＫ
+	if( ##return ) ##r = #RETURN_COMPLETE;
+	else ##r = #RETURN_ERROR;
+	writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, ##r;
+	endmacro;
+
+//	End Main Routine
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

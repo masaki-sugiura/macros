@@ -1,0 +1,87 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				UPDATING MANAGEMENT
+//	PLATFORM			dvips(k),(j)dvi2(k)ps,Aladdin GSview for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは dvips(k), (j)dvi2(k)ps と gsview32 専用です。				//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"DVI_PS";
+
+//	レジストリキー名
+#REG_VERSION	=	%VER_MINOR%;
+$REG_ROOT	=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION	=	"VersionInfo";
+$REG_K_PLATFORM	=	"Platform";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	INI ファイル
+$MSGINI		=	$MACRODIR + "\\message.ini";
+
+
+main:
+	call _kernel_getdatanum $REG_K_PLATFORM+"\\"+$PNAME, "InstalledWareFlag";
+	if( !##return ) endmacro;
+
+	call _kernel_getdatastr $REG_K_PLATFORM+"\\"+$PNAME, "MacroVersion";
+	if( $$return != "" ) $OLDVERSION = $$return;
+	else {
+		call _kernel_getdatastr $REG_K_VERSION, "MacroVersion";
+		$OLDVERSION = $$return;
+	}
+	#REG_VERSION_OLD = val(midstr($OLDVERSION,2,1));
+	#REVISION_OLD = val(midstr($OLDVERSION,4,2));
+
+	if( (#REG_VERSION_OLD <= 1) && (#REVISION_OLD < 4) ){
+		//	Ver.3.1.4 から DVI_PS のデータ形式を変更
+		$REG_ENUM[0] = "CmdArgv_DVIPS";
+		$REG_ENUM[1] = "CmdArgv_PSVIEW";
+		$REG_ENUM[2] = "TitleBarString";
+		call _kernel_getenumdatastr $REG_K_PLATFORM+"\\"+$PNAME+"\\DVIware", 3;
+		$REG_VALUE[0] = $REG_VALUE[0] + " -o$f\\$s.ps $f\\$s.dvi";
+		$REG_VALUE[1] = $REG_VALUE[1] + " $f\\$!";
+		$REG_VALUE[2] = "$! - " + $REG_VALUE[2];
+		call _kernel_writeenumdatastr
+			$REG_K_PLATFORM+"\\"+$PNAME+"\\DVIware", 3;
+	}
+	if ((#REG_VERSION_OLD <= 3) && (#REVISION_OLD < 6)) {
+		//	Ver.3.3.5 から DVI_PS のデータ形式を変更
+		//	3.3.5 でも変更するのは 3.3.5 のこのマクロにバグがあったため(^^;。
+		message "DVI_PS パッケージは Ver.3.3.5 から\n" + 
+				"設定の保存方法が変更されました。\n" + 
+				"とりあえず dvipsk/psview32 を使用する場合の\n" + 
+				"設定に変更するので、設定を変更していた方は"
+				"docs\\packages フォルダ内の DVI_PS.txt を\n" + 
+				"参照して再度変更し直して下さいm(_ _)m。";
+		$REG_ENUM[0] = "CmdArgv_DVIPS";
+		$REG_ENUM[1] = "CmdOpt_DVIPS";
+		$REG_ENUM[2] = "CmdArgv_PSVIEW";
+		$REG_ENUM[3] = "CmdOpt_PSVIEW";
+		$REG_VALUE[0] = "dvipsk.exe";
+		$REG_VALUE[1] = "\"$f\\$s.dvi\"";
+		$REG_VALUE[2] = "gsview32.exe";
+		$REG_VALUE[3] = "\"$f\\$!\"";
+		call _kernel_writeenumdatastr $REG_K_PLATFORM+"\\"+$PNAME+"\\DVIware", 4;
+	}
+
+	endmacro;
+
+//	End of Main
+

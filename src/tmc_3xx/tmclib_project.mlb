@@ -1,0 +1,78 @@
+////	Project Data Handling API	////
+_project_selectfile:
+	title "LOADING DATA : SubFile's Names";
+	##sf_num = getininum($PRJINI,$DYN_PDATA,"SubFileNum");
+	##maxlen = 15;
+	##a = 0;
+	while( ##a < ##sf_num ){
+		$$s = getinistr($PRJINI,$DYN_PDATA,"Project_Sub_"+str(##a));
+		$$file[##a] = leftstr($$s,strstr($$s,"|"));
+		if( ##maxlen < strlen($$file[##a]) ) ##maxlen = strlen($$file[##a]);
+		##a = ##a + 1;
+	}
+	##maxlen = ##maxlen + 2;
+	$$dlgmsg = "選択したいファイルに×印を付けて下さい";
+	title 0;
+	call _kernel_runms;
+	if( !##return ) return "!";
+	title "CREATING DIALOG";
+	ddepoke "newdialog", str(strlen($$dlgmsg)) + "," + $$1;
+	ddepoke "newcontrol", "text,," + $$dlgmsg;
+	ddepoke "newpage", str(##maxlen);
+	##a = 0;
+	##b = 1;
+	while( ##a < ##sf_num ){
+		if( strstr("|"+$$2,"|"+$$file[##a]+"|") != -1 ) $$d = "1";
+		else $$d = "0";
+		ddepoke "newcontrol", "check,Selected_"+str(##a)+","+$$file[##a];
+		ddepoke "default", $$d;
+		if( !((##a+1)%5) ){
+			ddepoke "newcolumn", str(##maxlen);
+			##b = ##b + 1;
+		}
+		##a = ##a + 1;
+	}
+	ddepoke "newpage", str(##maxlen*##b);
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+	call _kernel_makedlg;
+	if( $$return == "0" ){
+		call _kernel_exitms;
+		return "!";
+	}
+	$$sel = "";
+	##a = 0;
+	while( ##a < ##sf_num ){
+		if( dderequest("getstate Selected_"+str(##a)) == "1" )
+			$$sel = $$sel + $$file[##a] + "|";
+		##a = ##a + 1;
+	}
+	call _kernel_exitms;
+	return $$sel;
+
+#end_of_routine
+
+
+_project_groupmenu:
+	##g_num = getininum($PRJINI,"User_Project","UserGroup_Num");
+	if( !##g_num ){
+		call _kernel_showmsg 0, "Error_Project_GroupnotExist";
+		return -1;
+	}
+	$$k = char( keypressed );
+	if( $$k != "" ){
+		##s = val($$k);
+		if( ##s >= 0 || ##s <= ##g_num  ) return ##s;
+	}
+	##a = 0;
+	while( ##a < ##g_num ){
+		$$gmenu[##a] = "(&" + str(##a) + ")" + 
+			getinistr($PRJINI,"User_Project","UserGroupName_"+str(##a));
+		##a = ##a + 1;
+	}
+	menuarray $$gmenu, ##g_num;
+	return result - 1;
+
+#end_of_routine
+
+

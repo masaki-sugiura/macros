@@ -1,0 +1,174 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				MODULE CONTROL MICRO KERNEL
+//	PLATFORM			DVIOUT for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは DVIOUT for Windows 専用です。								//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$DVIWARE	=	"DVIOUT";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Definition of return code from module control micro-kernel
+//		マクロからの戻り値の定義
+//
+#RETURN_SUCCESS	=	  0;	//	正常にプレビューできた
+#RETURN_FAILED	=	  1;	//	DVIファイルがなかった
+#RETURN_ERROR	=	255;	//	異常終了
+
+//	Base registry path
+//		レジストリのパス名の定義
+//
+$REG_ROOT = "Sugi_Macro\\TeXModuleControl";	//	マクロのルートキー
+$REG_K_PI_BASE = "Platform\\" + $DVIWARE + "\\DVIware";
+	//	プラットフォームのサブキー
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Dynamic Data Information
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_MC_ACTION	=	"Action";
+$DYN_MC_RETURN	=	"return_preview";
+$DYN_PROJECT	=	"CurrentProjectInfo";	//	処理するファイルの情報
+
+//	Current Project Information
+//		コンパイル対象ファイルの情報
+//
+$FILENAME	=	getinistr($DYNINI,$DYN_PROJECT,"SrcFileName");
+$SHORTNAME	=	getinistr($DYNINI,$DYN_PROJECT,"ShortName");
+$PROJECTDIR	=	getinistr($DYNINI,$DYN_PROJECT,"ProjectDir");
+
+//	GetLFN.exe に渡すコマンドライン及び結果を格納するINIファイル
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$LFNCMD		=	"\"" + $TOOLDIR  + "\\getlfn.exe\" ";	//	空白対策(^^;
+$LFNINI		=	$TOOLDIR  + "\\getlfn.ini";
+
+call _kernel_getdatanum $REG_K_MACROCONFIG + "\\DVIware", "OpenType";
+#OPENTYPE = ##return;
+
+//----------------------------------//
+//	Platform dependent codes		//
+//----------------------------------//
+
+$REG_ENUM[0]	=	"BaseDir";
+$REG_ENUM[1]	=	"CmdArgv";
+$REG_ENUM[2]	=	"TitleBarString";
+call _kernel_getenumdatastr $REG_K_PI_BASE, 3;
+$DVIWAREDIR		=	$REG_VALUE[0];
+$CMDARGV		=	$REG_VALUE[1];
+$TITLEBARSTR	=	$REG_VALUE[2];
+
+call _kernel_getdatanum $REG_K_PI_BASE, "SourceSpecials";
+#SRC_SPEC = ##return;
+
+main:
+	$DVIFILE = $PROJECTDIR + "\\" + $SHORTNAME + ".dvi";
+	#ACTION = getininum($DYNINI, $DYN_MODULECMD, $DYN_MC_ACTION);
+	if (#ACTION == 0) {
+		call _local_preview;
+		##ret = ##return;
+	} else if (#ACTION == 1) {
+//		call _local_close;
+//		##ret = ##return;
+		##ret = #RETURN_SUCCESS;
+	}
+	writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, ##ret;
+	endmacro;
+
+
+_local_preview:
+	if (!existfile($DVIFILE)) {
+		$MSGARG[0] = $DVIFILE;
+		call _kernel_showmsg 0, "Error_File_notExist";
+		return #RETURN_ERROR;
+	}
+	call _local_findwindow;
+	$$dvifile = $$return;
+
+	call _local_dviout ($$dvifile == $DVIFILE);
+	return ##return;
+
+//EndofPreview_Main
+
+_local_dviout:
+	##page = getininum($DYNINI, $DYN_PROJECT, "LineNumber");
+	if (##1 == 0) { // 新規オープン
+		$$src_spec = "";
+		if (#SRC_SPEC && ##page > 0) {
+			$$src_spec = " \"# " + str(##page) + " " + $FILENAME + "\"";
+		}
+		run "\"" + $DVIWAREDIR + "\\" + $CMDARGV + "\" \"" + $DVIFILE + "\""
+			+ $$src_spec;
+		if (!result) {
+			$MSGARG[0] = $CMDARGV;
+			call _kernel_showmsg 0, "Error_Module_ExeOpen";
+			return #RETURN_ERROR;
+		}
+	} else { // reopen
+		ddeinitiate "dviout", "dviout";
+		if (!result) {
+			$MSGARG[0] = $TITLEBARSTR;
+			call _kernel_showmsg 0, "Error_Module_DDEInit";
+			return #RETURN_ERROR;
+		}
+		ddeexecute "[WinNormal]";
+
+		if (#SRC_SPEC && ##page > 0) {
+			ddeexecute "[PageOpen(# " + str(##page) + " " +  $FILENAME + ")]";
+		}
+
+		ddeexecute "[FileReopen]";
+		if (result) ddeterminate;
+		else {
+			ddeexecute "[FileExit]";
+			ddeterminate;
+			$MSGARG[0] = $DVIFILE;
+			call _kernel_showmsg 0, "Error_Module_DVIFileCreate";
+			return #RETURN_FAILED;
+		}
+	}
+
+	return #RETURN_SUCCESS;
+
+_local_findwindow:
+	ddeinitiate "dviout", "dviout";
+	if (!result) return "";
+	$$open_dvi = dderequest("dvifile");
+	ddeterminate;
+	call _local_normalize_filename $$open_dvi;
+	return $$return;
+
+_local_normalize_filename:
+	call _kernel_runapp $LFNCMD + "\"" + $$1 + "\"";
+	if (!##return) return "";
+	return	getinistr($LFNINI,"Result","directory") + "\\" + 
+			getinistr($LFNINI,"Result","basename");
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

@@ -1,0 +1,52 @@
+    +-------------------------------------------------------------------+
+    |    Macro Package for TeX Module Control with HIDEMARU MACRO       |
+    |                                    DVIOUT Package Information     |
+    +-------------------------------------------------------------------+
+
+
+  【０】  概要
+
+    SHIMA 氏による DVIOUT の、乙部氏による Win32 への移植版である「DVIOUT for
+    Windows 95/NT」を、秀丸マクロから直接操作します。
+
+
+  【１】  パッケージ名 etc.
+
+    ・パッケージ名            ：  DVIOUT
+    ・メニューでの名前        ：  DVIOUT for Windows
+    ・基本マクロのバージョン  ：  3.3.0 以上が必要
+                                  (source specials を使う場合は 3.3.11 以上)
+
+
+  【２】  このマクロから操作できるモジュール(の実行ファイル名)
+
+    ・Previewer モジュール  ：  dviout.exe
+
+
+  【３】  ソフトウェアの検出方法
+
+    レジストリの HKEY_CURRENT_USER\Software\SHIMA\DVIOUT キーが存在した場合、
+    ソフトウェアがインストールされていると判断します。
+
+
+  【４】  設定メニューの項目
+
+    ＊  DVI ware(Previewer モジュール)
+
+      [フォルダ/ファイル名関連の設定]
+
+        ・TeX モジュールのフォルダ名：(REG_SZ:"BaseDir")
+          dviout.exe のあるフォルダ名を記入します。
+
+      [動作定義パラメータ関連の設定]
+
+        ・開き直しの際の"[Reopen]"命令の使用の許可：(REG_DWORD:"Reopen")
+          同じ DVI ファイルを開く時に「常に一つだけ開く」にした場合、DVIOUT
+          の「開き直す」の機能を使うかどうかを選択できます。
+
+        ・開く際の source specials 機能の使用の許可：
+          (REG_DWORD:"SourceSpecials")
+          このチェックがＯＮの場合、ソースファイルの現在のカーソル行に
+          対応するページを表示します。
+
+

@@ -1,0 +1,19 @@
+;
+;	「DVIOUT for Windows 95/NT」用
+;	サポートマクロセット
+;
+
+[Info]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+ExternalName=DVIOUT for Windows
+InternalName=DVIOUT
+DetectionMethod=r:1Software\SHIMA\DVIOUT
+SupportedWareFlag=2
+
+[Files]
+FileNum=4
+FILE_0=\DVIOUT\preview.mac
+FILE_1=\DVIOUT\d_config.mac
+FILE_2=\DVIOUT\install.mac
+FILE_3=\DVIOUT\instinfo.ini
+

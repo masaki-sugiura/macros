@@ -1,0 +1,27 @@
+;
+;	「ASCII pTeX」用
+;	サポートマクロセット
+;
+
+[Info]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+ExternalName=ASCII pTeX
+InternalName=pTeX2
+DetectionMethod=e:TEXENV|e:TEXMFCNF
+SupportedWareFlag=13
+
+[Files]
+FileNum=12
+FILE_0=\pTeX2\virtex.mac
+FILE_1=\pTeX2\makeidx.mac
+FILE_2=\pTeX2\bibtex.mac
+FILE_3=\pTeX2\t_config.mac
+FILE_4=\pTeX2\m_config.mac
+FILE_5=\pTeX2\b_config.mac
+FILE_6=\pTeX2\install.mac
+FILE_7=\pTeX2\update.mac
+FILE_8=\pTeX2\instinfo.ini
+FILE_9=\pTeX2\fmtname.ini
+FILE_10=\tools\execvtex.exe
+FILE_11=\tools\err_hook.exe
+

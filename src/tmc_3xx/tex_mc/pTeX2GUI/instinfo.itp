@@ -1,0 +1,25 @@
+;
+;	「pTeX GUI-SHELL」用
+;	サポートマクロセット
+;
+
+[Info]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+ExternalName=pTeX GUI-SHELL
+InternalName=pTeX2GUI
+DetectionMethod=r:1Software\OTOBE\bwpvtex
+SupportedWareFlag=13
+
+[Files]
+FileNum=10
+FILE_0=\pTeX2GUI\virtex.mac
+FILE_1=\pTeX2GUI\makeidx.mac
+FILE_2=\pTeX2GUI\bibtex.mac
+FILE_3=\pTeX2GUI\t_config.mac
+FILE_4=\pTeX2GUI\m_config.mac
+FILE_5=\pTeX2GUI\b_config.mac
+FILE_6=\pTeX2GUI\install.mac
+FILE_7=\pTeX2GUI\instinfo.ini
+FILE_8=\tools\wtxccchk.exe
+FILE_9=\tools\mkfmtdb.exe
+

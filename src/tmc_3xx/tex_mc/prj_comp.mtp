@@ -1,0 +1,272 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				PREPARATION FOR PROJECT TYPESETTING
+//	PLATFORM			INDEPENDENT
+//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+$REG_K_PROJECT	=	"ProjectInfo";	//	プロジェクト登録サブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Macro Config Information
+call _kernel_getdatastr $REG_K_MACROCONFIG, "HmOpenOption";
+$OPTIONS  = $$return;
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_PROJECT	=	"CurrentProjectInfo";	//	処理するファイルの情報
+$DYN_PDATA	=	"Project_Data";
+
+$REG_ENUM[0] = "ProjectDataFile";
+$REG_ENUM[1] = "ProjectDir";
+call _kernel_getenumdatastr $REG_K_PROJECT, 2;
+$PRJINI = $REG_VALUE[0];
+$PROJECTDIR = $REG_VALUE[1];
+if ($PRJINI == "") {
+	call _kernel_showmsg 0, "Error_Project_notExist";
+	call _local_exit 0;
+}
+
+$PRJ_ALL = getinistr($PRJINI, $DYN_PDATA, "Project_All");
+$PRJ_PAR = getinistr($PRJINI, $DYN_PDATA, "Project_Parent");
+if (!getininum($PRJINI, $DYN_PDATA, "CreatorMacro_MajorVersion")) {
+	$PRJ_PAR_NOEXT = $PRJ_PAR;
+	$PRJ_PAR = $PRJ_PAR + ".tex";
+} else {
+	call _common_getnoextfilename $PRJ_PAR;
+	$PRJ_PAR_NOEXT = $$return;
+}
+
+$CUR_DIR = getinistr($DYNINI, $DYN_PROJECT, "ProjectDir");
+if ($CUR_DIR != $PROJECTDIR) {
+	##l = strlen($CUR_DIR) - strlen($PROJECTDIR);
+	if (##l <= 0 || leftstr($CUR_DIR, strlen($PROJECTDIR)) != $PROJECTDIR) {
+		call _kernel_showmsg 0, "Error_Project_FilenotRegProject";
+		call _local_exit 0;
+	} else {
+		$$subdir = rightstr($CUR_DIR, ##l - 1);
+		while (1) {
+			##s = strstr($$subdir, "\\");
+			if (##s == -1) break;
+			$$subdir = leftstr($$subdir, ##s) + "/" + 
+				midstr($$subdir, ##s + 1, 255);
+		}
+		$$subdir = $$subdir + "/";
+	}
+} else $$subdir = "";
+
+$CUR_FILE = $$subdir + getinistr($DYNINI, $DYN_PROJECT, "FileName");
+call _common_getnoextfilename $CUR_FILE;
+$CUR_FILE_NOEXT = $$return;
+
+call _common_tolower $PRJ_ALL + $PRJ_PAR_NOEXT;
+if (strstr("|" + $$return + "|", "|" + $CUR_FILE_NOEXT + "|") == -1) {
+	call _kernel_showmsg 0, "Error_Project_FilenotRegProject";
+	call _local_exit 0;
+}
+
+
+//	Main Routine
+main:
+	##r = 0;
+	$$k = char(keypressed);
+	if ($$k != "") ##r = strstr("AUTCS", $$k) + 1;
+	if (!##r) {
+		title "PROJECT : " + getinistr($PRJINI, $DYN_PDATA, "ProjectName");
+		menu	"(&A)全部のファイルを処理",
+				"(&U)更新されたファイルのみ処理",
+				"(&T)このファイルだけ処理",
+				"(&C)指定ファイルだけ処理",
+				"(&S)ユーザー指定グループを処理";
+		if (!result) call _local_exit 0;
+		else ##r = result;
+	}
+	$$header = getinistr($PRJINI, $DYN_PDATA, "Project_Header");
+	if (##r <= 2) {
+		$$s_files = $PRJ_ALL;
+		##use_result = ##r - 1;
+	} else if (##r == 3) {
+		$$s_files =  $CUR_FILE_NOEXT + "|";
+		##use_result = 0;
+	} else if (##r == 4) {
+		call _project_selectfile "TeXをかけるファイルの指定", $$header;
+		if ($$return == "!") call _local_exit 0;
+		else $$s_files = $$return;
+		$$header = "";
+		##use_result = 0;
+	} else if (##r == 5) {
+		call _project_groupmenu;
+		if (##return == -1) call _local_exit 0;
+		else $$s_files = 
+			getinistr($PRJINI, "User_Project", "UserGroup_" + str(##return));
+		##use_result = 0;
+	}
+	##comp = 1;
+	call _local_findupdatesubfile $$s_files;
+	if (strlen($$return) <= 1) {
+		if ($$s_files == getinistr($PRJINI, $DYN_PDATA, "OldSubFiles"))
+			##comp = 0;
+	} else if (##use_result) $$s_files = $$return;
+	writeinistr $PRJINI, $DYN_PDATA, "OldSubFiles", $$s_files;
+	if (##comp) {
+		call _local_makeparfile $$s_files + $$header;
+		if (!##return) call _local_exit 0;
+	}
+	writeinistr $DYNINI, $DYN_PROJECT, "ProjectDir", $PROJECTDIR;
+	writeinistr $DYNINI, $DYN_PROJECT, "FileName", $PRJ_PAR;
+
+	call _kernel_getdatanum $REG_K_MACROCONFIG, "SourceSpecials";
+	if (##return) {
+		//	may add "subdir/" prefix to the original filename
+		writeinistr $DYNINI, $DYN_PROJECT, "SrcFileName", $CUR_FILE;
+	}
+
+	call _local_exit ##comp + 1;
+	endmacro;	//	not reached.
+
+//	End of Main
+
+_local_makeparfile:
+	call _common_tolower $$1;
+	$$files = $$return;
+
+	$$par_file = $PROJECTDIR + "\\" + $PRJ_PAR;
+	title "UPDATING PROJECT FILE : " + $$par_file;
+	##hwnd = hidemaruhandle(0);
+	##close = 0;
+	if ($PROJECTDIR + "\\" + $CUR_FILE != $$par_file) {
+		##hwnd_par = findhidemaru($$par_file);
+		if (##hwnd_par == -1) {
+			##close = 1;
+			call _kernel_openhm $$par_file;
+			if (!##return) return 0;
+			else ##hwnd_par = ##return;
+		} else {
+			##hwnd_par = hidemaruhandle(##hwnd_par);
+			call _kernel_activatehm ##hwnd_par;
+		}
+	} else ##hwnd_par = ##hwnd;
+	##cx = x; ##cy = y;
+	disableinvert;
+	disabledraw;
+	$$s_buf = searchbuffer;
+	##s_opt = searchoption;
+	setsearch $$s_buf, 0;
+	gofiletop;
+	while (1) {
+		searchdown "\\\\in(put|clude)[^a-zA-Z0-9_]", regular;
+		if (!result) break;
+		##x = column;
+		wordrightsalnen;
+		wordright;
+		##tx = x; ##ty = y;
+		searchdown "[\\n\\}]", regular;
+		$$f = "|" + gettext(##tx, ##ty, x, y) + "|";
+		golinetop2;
+		while (column < ##x) {
+			if (code != 0x25) right 1;
+			else {
+				##x = ##x - 1; delete;
+			}
+		}
+		call _common_tolower $$f;
+		if (strstr("|" + $$files, $$return) == -1) insert "%";
+	}
+	setsearch $$s_buf, ##s_opt;
+	save;
+	if (##close) {
+		call _kernel_activatehm ##hwnd;
+		call _kernel_closehm ##hwnd_par;
+	} else {
+		moveto ##cx, ##cy;
+		call _kernel_activatehm ##hwnd;
+	}
+	title 0;
+	return 1;
+
+_local_findupdatesubfile:
+	call _common_tolower $$1;
+	$$files = $$return;
+
+	##hwnd = hidemaruhandle(0);
+
+	##s_num = getininum($PRJINI, $DYN_PDATA, "SubFileNum");
+	##a = 0;
+	while (##a < ##s_num) {
+		$$s = getinistr($PRJINI, $DYN_PDATA, "Project_Sub_" + str(##a));
+		##s = strstr($$s, "|");
+		$$b_name[##a]  = leftstr($$s, ##s);
+		$$t_stamp[##a] = midstr($$s, ##s + 1, strlen($$s));
+		if (!existfile($PROJECTDIR + "\\" + $$b_name[##a] + ".tex")) {
+			##a = ##a + 1;
+			continue;
+		}
+		title "SEARCHING UPDATED FILES : " + $$b_name[##a] + ".tex";
+		call _common_tolower $$b_name[##a];
+		##is_ordered[##a] = strstr("|" + $$files, "|" + $$return + "|") + 1;
+		##horder_sub = -1;
+		if (##is_ordered[##a]) {
+			if ($$b_name[##a] != basename)
+				##horder_sub = findhidemaru($PROJECTDIR + "\\" + 
+											$$b_name[##a] + ".tex");
+			else ##horder_sub = 0;
+		}
+		if (##horder_sub != -1) {
+			call _kernel_activatehm hidemaruhandle(##horder_sub);
+			if (updated) {
+				question $PROJECTDIR + "\\" + $$b_name[##a] + ".tex\n" + 
+						"は更新されています。\n保存しますか？";
+				if (result) save;
+			}
+			call _kernel_activatehm ##hwnd;
+		}
+		##a = ##a + 1;
+	}
+	title 0;
+
+//	これを上と一つにまとめると、dderequest()が失敗する。
+	call _kernel_runms;
+	if (!##return) return "!";
+	title "UPDATING PROJECT FILE : " + $PROJECTDIR + "\\" + $PRJ_PAR;
+	$$u_files = "";
+	##a = 0;
+	while (##a < ##s_num) {
+		$$t = dderequest("timecountof " + $PROJECTDIR + "\\" + 
+						 $$b_name[##a] + ".tex");
+		if ($$t != $$t_stamp[##a]) {
+			if (##is_ordered[##a])
+				$$u_files = $$u_files + $$b_name[##a] + "|";
+			writeinistr $PRJINI, $DYN_PDATA, "Project_Sub_" + str(##a),
+						$$b_name[##a] + "|" + $$t;
+		}
+		##a = ##a + 1;
+	}
+	call _kernel_exitms;
+	title 0;
+
+	return $$u_files;
+
+_local_exit:
+	call _kernel_write_execcmd ##1;
+	endmacro;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

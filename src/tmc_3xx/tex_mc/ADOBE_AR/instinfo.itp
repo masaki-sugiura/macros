@@ -1,0 +1,20 @@
+;
+;	「Adobe Acrobat Reader」用
+;	サポートマクロセット
+;
+
+[Info]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+ExternalName=Adobe Acrobat Reader
+InternalName=ADOBE_AR
+DetectionMethod=r:2Software\Adobe\AcrobatReader\InstallPath|r:2Software\Adobe\Acrobat Reader\4.0\InstallPath|r:2Software\Adobe\Acrobat Reader\5.0\InstallPath
+SupportedWareFlag=2
+
+[Files]
+FileNum=5
+FILE_0=\ADOBE_AR\preview.mac
+FILE_1=\ADOBE_AR\d_config.mac
+FILE_2=\ADOBE_AR\install.mac
+FILE_3=\ADOBE_AR\update.mac
+FILE_4=\ADOBE_AR\instinfo.ini
+

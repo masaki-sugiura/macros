@@ -1,0 +1,174 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT
+//	PLATFORM			TeX for Windows
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロはインプレスラボの TeX for Windows 専用です。					//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$TEXWARE	=	"WinTeX";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_PI_BASE	=	"Platform\\" + $TEXWARE + "\\TeXware";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Main Routine
+main:
+	menu	"(&D)\tフォルダ/ファイル名関連の設定",
+			"(&F)\tフォーマットファイル関連の設定",
+			"(&P)\t動作定義パラメータ関連の設定";
+	if( !result ) endmacro;
+	else if( result == 1 ) call _local_envconfig;
+	else if( result == 2 ) call _local_formatconfig;
+	else if( result == 3 ) call _local_paramconfig;
+	goto main;
+
+//	End of Main
+
+_local_envconfig:
+	$REG_ENUM[0]	=	"BaseDir";
+	$REG_ENUM[1]	=	"FormatDir";
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 2;
+	$DIR[0]	=	$REG_VALUE[0];
+	$DIR[1]	=	$REG_VALUE[1];
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+
+	ddepoke "newdialog", "60," + 
+		getinistr($MSGINI,"DialogMessages","EnvConfig");
+	##a = 0;
+	while( ##a < 2 ){
+		ddepoke "newcontrol", "text,," + 
+			getinistr($MSGINI,"DialogMessages","Directory_"+str(##a));
+		ddepoke "part", "30";
+		ddepoke "newcontrol", "edit,Dir_" + str(##a) + "," + $DIR[##a];
+		##a = ##a + 1;
+	}
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", "40";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		##a = 0;
+		while( ##a < 2 ){
+			call _common_removelastsep dderequest("getstring Dir_"+str(##a));
+			call _common_casechange 0, $$return;
+			$REG_VALUE[##a] = $$return;
+			##a = ##a + 1;
+		}
+		call _kernel_writeenumdatastr $REG_K_PI_BASE, 2;
+	}
+	call _kernel_exitms;
+	return;
+
+_local_formatconfig:
+	$REG_K_FORMAT = "FormatMenu\\" + $TEXWARE;
+	menu	"(&S)\tフォーマット毎の TeX のサイズを変更",
+			"(&R)\tフォーマットメニューの再構築";
+	if( !result ) return;
+	else if( result == 1 ){
+		call _kernel_getdatanum $REG_K_FORMAT, "Num";
+		##num = ##return;
+		##a = 0;
+		while( ##a < ##num ){
+			$REG_ENUM[##a] = str(##a);
+			##a = ##a + 1;
+		}
+		call _kernel_getenumdatastr $REG_K_FORMAT, ##num;
+
+		title "CREATING DIALOG";
+		call _kernel_runms;
+		if( !##return ) return;
+		ddepoke "newdialog", "30," + 
+			getinistr($MSGINI,"DialogMessages","TeXSize");
+		ddepoke "newcontrol", "text,," + 
+			getinistr($MSGINI,"DialogMessages","TeXSizeMessage");
+		##a = 0;
+		while( ##a < ##num ){
+			ddepoke "newcontrol", "check,Size_" + str(##a) + "," + 
+				midstr($REG_VALUE[##a],strstr($REG_VALUE[##a],":")+1,256);
+			ddepoke "default", leftstr($REG_VALUE[##a],1);
+			##a = ##a + 1;
+		}
+		ddepoke "newcontrol", "okcancel";
+		title 0;
+
+		call _kernel_makedlg;
+		if( $$return != "0" ){
+			##a = 0;
+			while( ##a < ##num ){
+				$REG_VALUE[##a] = dderequest("getstate Size_"+str(##a)) + 
+					midstr($REG_VALUE[##a],1,256);
+				##a = ##a + 1;
+			}
+			call _kernel_writeenumdatastr $REG_K_FORMAT, ##num;
+		}
+		call _kernel_exitms;
+	} else if( result == 2 )
+		call _kernel_runapp "\"" + $MACRODIR + "\\tools\\mkfmtdb.exe\" wintex";
+	return;
+
+_local_paramconfig:
+	call _kernel_getdatanum $REG_K_PI_BASE, "QuitTeX";
+	#QUITTEX = ##return;
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+
+	ddepoke "newdialog", "30," + 
+		getinistr($MSGINI,"DialogMessages","ParamConfig");
+	ddepoke "newcontrol", "radio,QuitTeX," + 
+		getinistr($MSGINI,"DialogMessages","QuitTeXTitle");
+	##a = 0;
+	while( ##a < 3 ){
+		ddepoke "item",getinistr($MSGINI,"DialogMessages","QuitTeX_"+str(##a));
+		##a = ##a + 1;
+	}
+	ddepoke "default", str(#QUITTEX+1);
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		call _kernel_writedatanum $REG_K_PI_BASE, "QuitTeX",
+			val(dderequest("getstate QuitTeX")) - 1;
+	}
+	call _kernel_exitms;
+	return;
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

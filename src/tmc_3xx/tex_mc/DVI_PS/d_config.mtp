@@ -1,0 +1,120 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT
+//	PLATFORM			dvips(k),(j)dvi2(k)ps,Aladdin GSview for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは dvips(k), (j)dvi2(k)ps と gsview32 専用です。				//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$DVIWARE	=	"DVI_PS";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_PI_BASE	=	"Platform\\" + $DVIWARE + "\\DVIware";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+
+//	Main Routine
+main:
+	call _local_envconfig;
+	endmacro;
+
+//	End of Main
+
+_local_envconfig:
+	$PLATFORM[0] = "DVIPS";
+	$PLATFORM[1] = "PSVIEW";
+	##a = 0;
+	while( ##a < 6 ){
+		if (##a%3 == 0) $REG_ENUM[##a] = "BaseDir_" + $PLATFORM[(##a/3)];
+		else if (##a%3 == 1) $REG_ENUM[##a] = "CmdArgv_" + $PLATFORM[(##a/3)];
+		else $REG_ENUM[##a] = "CmdOpt_" + $PLATFORM[(##a/3)];
+		##a = ##a + 1;
+	}
+	$REG_ENUM[6] = "TitleBarString";
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 7;
+	##a = 0;
+	while( ##a < 6 ){
+		if (##a%3 == 0) $BASEDIR[(##a/3)] = $REG_VALUE[##a];
+		else if (##a%3 == 1) $CMDARGV[(##a/3)] = $REG_VALUE[##a];
+		else $CMDOPT[(##a/3)] = $REG_VALUE[##a];
+		##a = ##a + 1;
+	}
+	$TITLEBARSTR = $REG_VALUE[6];
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+	ddepoke "newdialog", "65," + 
+		getinistr($MSGINI,"DialogMessages","EnvConfig");
+	##a = 0;
+	while( ##a < 2 ){
+		ddepoke "newcontrol", "text,," + $PLATFORM[##a] + 
+			" のフォルダ名";
+		ddepoke "part", "25";
+		ddepoke "newcontrol", "edit,BaseDir_"+str(##a)+","+$BASEDIR[##a];
+		ddepoke "newcontrol", "text,,〃 実行ファイル名";
+		ddepoke "part", "25";
+		ddepoke "newcontrol", "edit,CmdArgv_"+str(##a)+","+$CMDARGV[##a];
+		ddepoke "newcontrol", "text,,〃 オプション";
+		ddepoke "part", "25";
+		ddepoke "newcontrol", "edit,CmdOpt_"+str(##a)+","+$CMDOPT[##a];
+		##a = ##a + 1;
+	}
+	ddepoke "newcontrol", "text,,PSVIEW のタイトルバー";
+	ddepoke "part", "25";
+	ddepoke "newcontrol", "edit,TitleBarString," + $TITLEBARSTR;
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", "45";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		##a = 0;
+		while( ##a < 2 ){
+			call _common_removelastsep
+					dderequest("getstring BaseDir_"+str(##a));
+			call _common_casechange 0, $$return;
+			$REG_VALUE[(##a*3)] = $$return;
+			call _common_casechange 0,
+				dderequest("getstring CmdArgv_"+str(##a));
+			$REG_VALUE[(##a*3+1)] = $$return;
+			$REG_VALUE[(##a*3+2)] = dderequest("getstring CmdOpt_"+str(##a));
+			##a = ##a + 1;
+		}
+		$REG_VALUE[6] = dderequest("getstring TitleBarString");
+		call _kernel_writeenumdatastr $REG_K_PI_BASE, 7;
+	}
+	call _kernel_exitms;
+	return;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

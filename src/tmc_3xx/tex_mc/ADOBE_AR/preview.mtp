@@ -1,0 +1,144 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				MODULE CONTROL MICRO KERNEL
+//	PLATFORM			Adobe Acrobat Reader for Windows 95/NT
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは Adobe Acrobat Reader 専用です。							//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$DVIWARE	=	"ADOBE_AR";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Definition of return code from module control micro-kernel
+//		マクロからの戻り値の定義
+//
+#RETURN_SUCCESS	=	  0;	//	正常にプレビューできた
+#RETURN_FAILED	=	  1;	//	PDFファイルがなかった
+#RETURN_ERROR	=	255;	//	異常終了
+
+//	Base registry path
+//		レジストリのパス名の定義
+//
+$REG_ROOT = "Sugi_Macro\\TeXModuleControl";	//	マクロのルートキー
+$REG_K_PI_BASE = "Platform\\" + $DVIWARE + "\\DVIware";
+	//	プラットフォームのサブキー
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Dynamic Data Information
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_MC_ACTION  =   "Action";
+$DYN_MC_RETURN	=	"return_preview";
+$DYN_PROJECT	=	"CurrentProjectInfo";	//	処理するファイルの情報
+
+//	Current Project Information
+//		コンパイル対象ファイルの情報
+//
+$FILENAME	=	getinistr($DYNINI,$DYN_PROJECT,"FileName");
+$SHORTNAME	=	getinistr($DYNINI,$DYN_PROJECT,"ShortName");
+$PROJECTDIR	=	getinistr($DYNINI,$DYN_PROJECT,"ProjectDir");
+$OUTPUTEXT	=	getinistr($DYNINI,$DYN_PROJECT,"OutputExt");
+
+call _kernel_getdatanum $REG_K_MACROCONFIG + "\\DVIware", "OpenType";
+#OPENTYPE = ##return;
+
+//----------------------------------//
+//	Platform dependent codes		//
+//----------------------------------//
+
+$REG_ENUM[0]	=	"BaseDir";
+$REG_ENUM[1]	=	"CmdArgv";
+$REG_ENUM[2]	=	"CmdOpt";
+$REG_ENUM[3]	=	"TitleBarString";
+call _kernel_getenumdatastr $REG_K_PI_BASE, 4;
+$BASEDIR		=	$REG_VALUE[0];
+$CMDARGV		=	$REG_VALUE[1];
+$CMDOPT			=	$REG_VALUE[2];
+$TITLEBARSTR	=	$REG_VALUE[3];
+
+main:
+	$PDFFILE = $PROJECTDIR + "\\" + $SHORTNAME + $OUTPUTEXT;
+	#ACTION = getininum($DYNINI, $DYN_MODULECMD, $DYN_MC_ACTION);
+	if (#ACTION == 0) {
+		call _local_preview;
+		##ret = ##return;
+	} else if (#ACTION == 1) {
+		call _local_close;
+		##ret = ##return;
+	}
+	writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, ##ret;
+	endmacro;
+
+
+//EndofMain
+
+_local_preview:
+	if (!existfile($PDFFILE)) {
+		$MSGARG[0] = $PDFFILE;
+		call _kernel_showmsg 0, "Error_File_notExist";
+		return #RETURN_ERROR;
+	}
+
+	call _local_replacestring $CMDOPT;
+	run "\"" + $BASEDIR + "\\" + $CMDARGV + "\" " + $$return;
+	if (!result) {
+		$MSGARG[0] = $CMDARGV;
+		call _kernel_showmsg 0, "Error_Module_ExeOpen";
+		##ret = #RETURN_ERROR;
+	} else ##ret = #RETURN_SUCCESS;
+	return ##ret;
+
+_local_close:
+	call _local_replacestring $TITLEBARSTR;
+	##hwnd_pdf = findwindow($$return);
+	if (##hwnd_pdf)
+		##s = sendmessage(##hwnd_pdf, 0x0112, 0xF060, 0);
+	return #RETURN_SUCCESS;
+
+_local_replacestring:
+	$$str = "";
+	while (1) {
+		##s = strstr($$1, "$");
+		if (!(##s + 1)) return $$str + $$1;
+		else {
+			$$s = midstr($$1, ##s + 1, 1);
+			if ($$s == "$") $$ss = "$";
+			else if ($$s == "f") $$ss = $PROJECTDIR;
+			else if ($$s == "t") $$ss = $FILENAME;
+			else if ($$s == "s") $$ss = $SHORTNAME;
+			else if ($$s == "!") $$ss = $SHORTNAME + $OUTPUTEXT;
+			$$str = $$str + leftstr($$1, ##s) + $$ss;
+			$$1 = midstr($$1, ##s + 2, 256);
+		}
+	}
+	//	not reached.
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

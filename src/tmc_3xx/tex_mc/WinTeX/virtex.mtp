@@ -1,0 +1,179 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				MODULE CONTROL MICRO KERNEL
+//	PLATFORM			TeX for Windows
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロはインプレスラボの TeX for Windows 専用です。					//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$TEXWARE	=	"WinTeX";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Definition of return code from module control micro-kernel
+//		マクロからの戻り値の定義
+//
+#RETURN_COMPLETE	=	  0;		//	コンパイルが正常に終了
+#RETURN_CONTINUE	=	  1;		//	リコンパイルが必要
+#RETURN_EDIT		=	  2;		//	"e"でコンパイルを中止した。
+#RETURN_STOP		=	  4;		//	"x"でコンパイルを中止した
+#RETURN_ERROR		=	255;		//	コンパイル実行エラー
+
+//	Base registry path
+//		レジストリのパス名の定義
+//
+$REG_ROOT = "Sugi_Macro\\TeXModuleControl";	//	マクロのルートキー
+$REG_K_PI_BASE = "Platform\\" + $TEXWARE + "\\TeXware";
+	//	プラットフォームのサブキー
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Dynamic Data Information
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_MC_RETURN	=	"return_virtex";	//	モジュールの戻り値
+$DYN_PROJECT	=	"CurrentProjectInfo";
+
+//	Current Project Information
+//		コンパイル対象ファイルの情報
+//
+$FILENAME	=	getinistr($DYNINI,$DYN_PROJECT,"FileName");
+$PROJECTDIR	=	getinistr($DYNINI,$DYN_PROJECT,"ProjectDir");
+
+//	Current Format Information
+//		フォーマットファイルの指定
+//		この ID をどういう意味で使うかはプラットフォームに依存する。
+//
+call _kernel_getdatanum "FormatMenu\\" + $TEXWARE, "CurrentUsedFormat";
+#FORMAT_MENUID = ##return;
+call _kernel_getdatanum "FormatMenu\\" + $TEXWARE, "Num";
+if( ##return <= #FORMAT_MENUID ) #FORMAT_MENUID = 0;
+
+//----------------------------------//
+//	Platform dependent codes		//
+//----------------------------------//
+
+////////	TeXware Information (of TeX for Windows)
+call _kernel_getdatastr $REG_K_PI_BASE, "BaseDir";
+$TEXWAREDIR = $$return;
+call _kernel_getdatastr "FormatMenu\\" + $TEXWARE, str(#FORMAT_MENUID);
+if( leftstr($$return,1) == "0" ) $CMDARGV = "wpvtex";
+else $CMDARGV = "bwpvtex";
+$FORMATID = str(#FORMAT_MENUID);
+call _kernel_getdatanum $REG_K_PI_BASE, "QuitTeX";
+#QUITTEX = ##return;
+
+$TOOLDIR	= $MACRODIR + "\\tools";
+$COMPCHKCMD = "\"" + $TOOLDIR + "\\wtxccchk.exe\" ";
+$LFNCMD = "\"" + $TOOLDIR + "\\getlfn.exe\" ";
+$LFNINI = $TOOLDIR + "\\getlfn.ini";
+
+//	Start Main Routine
+main:
+	##hwnd = hidemaruhandle( 0 );
+	##hwnd_tex = findwindow($CMDARGV);
+	if( !##hwnd_tex ){
+		run "\"" + $TEXWAREDIR + "\\" + $CMDARGV + ".exe\"";
+		if( !result ){
+			$MSGARG[0] = $CMDARGV;
+			call _kernel_showmsg 0, "Error_Module_ExeOpen";
+			writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, #RETURN_ERROR;
+			endmacro;
+		}
+		goto main;
+	}
+	ddeinitiate $CMDARGV, $CMDARGV;
+	if( !result ){
+		##s = sendmessage(##hwnd_tex,0x0112,0xF060,0);
+		$MSGARG[0] = $CMDARGV;
+		call _kernel_showmsg 0, "Error_Module_DDEInit";
+		writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, #RETURN_ERROR;
+		endmacro;
+	}
+	$name = "";
+	ddestartadvice "Advise", $name;
+	if( !result ){
+		ddestopadvice "Advise";
+		ddeterminate;
+		##Send = sendmessage(##hwnd_tex,0x0112,0xF060,0);
+		$MSGARG[0] = $CMDARGV;
+		call _kernel_showmsg 0, "Error_Module_StartAdvice";
+		continue;
+	}
+	ddeexecute "[virtex(" + $PROJECTDIR + "\\" + $FILENAME + ","
+		 + $FORMATID + ")]";
+	while( $name == "" ) ddewaitadvice  "Advise", 999;
+	ddestopadvice "Advise";
+	ddeterminate;
+	if( #QUITTEX == 1 ) ##s = sendmessage(##hwnd_tex,0x0112,0xF020,0);
+	else if( #QUITTEX == 2 ) ##s = sendmessage(##hwnd,0x001C,1,0);
+	else ##s = sendmessage(##hwnd_tex,0x0112,0xF060,0);
+
+	if( $name == "ERROR" ) ##answer = #RETURN_STOP;
+	else if( $name == "OK" ){
+		call _kernel_runapp $COMPCHKCMD+"\""+$PROJECTDIR+"\\"+$FILENAME+"\"";
+		if( !##return )
+			writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, #RETURN_ERROR;
+		endmacro;
+	} else {
+		call _local_surveyerror $name;
+		##answer = ##return;
+	}
+	writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, ##answer;
+	endmacro;
+
+//	End Main Routine
+
+_local_surveyerror:
+	$$line = "";
+	##len = strlen($$1);
+	while( ##len ){
+		##len = ##len - 1;
+		$$n = midstr($$1,##len,1);
+		if( strstr("0123456789",$$n) == -1 ){
+			call _kernel_runapp $LFNCMD + "\"" + leftstr($$1,##len) + "\"";
+			if( !##return ) return #RETURN_ERROR;
+			$$errfile = getinistr($LFNINI,"Result","filename");
+			if( $$errfile == "" ){
+				$MSGARG[0] = $TOOLDIR;
+				$MSGARG[1] = "getlfn.ini";
+				call _kernel_showmsg 0, "Error_Access_ForbiddenRead";
+				return #RETURN_ERROR;
+			}
+			writeinistr $DYNINI, $DYN_MODULECMD, "Error_FileName", $$errfile;
+			writeinistr $DYNINI, $DYN_MODULECMD, "Error_Line", $$line;
+			return #RETURN_EDIT;
+		}
+		$$line = $$n + $$line;
+	}
+	$MSGARG[0] = $$1;
+	call _kernel_showmsg 0, "Error_Module_UnknownMSG";
+	return #RETURN_ERROR;
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

@@ -1,0 +1,177 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT
+//	PLATFORM			ASCII-pTeX 2.1.X (Console)
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは ASCII-pTeX 専用です。										//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$MKIDXWARE	=	"pTeX2";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_PI_BASE	=	"Platform\\" + $MKIDXWARE + "\\MkIdxware";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+
+//	Main Routine
+main:
+	menu	"(&D)\tフォルダ/ファイル名関連の設定",
+			"(&P)\t動作定義パラメータ関連の設定";
+	if( !result ) endmacro;
+	else if( result == 1 ) call _local_envconfig;
+	else if( result == 2 ) call _local_paramconfig;
+	goto main;
+
+//	End of Main
+
+_local_envconfig:
+	$REG_ENUM[0] = "BaseDir";
+	$REG_ENUM[1] = "ExeName";
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 2;
+	$BASEDIR = $REG_VALUE[0];
+	$EXENAME = $REG_VALUE[1];
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+
+	ddepoke "newdialog", "60," + 
+		getinistr($MSGINI,"DialogMessages","EnvConfig");
+	ddepoke "newcontrol", "text,," + 
+		getinistr($MSGINI,"DialogMessages","Directory_0");
+	ddepoke "part", "30";
+	ddepoke "newcontrol", "edit,BaseDir," + $BASEDIR;
+	ddepoke "newcontrol", "text,," + 
+		getinistr($MSGINI,"DialogMessages","FileName_0");
+	ddepoke "part", "30";
+	ddepoke "newcontrol", "edit,ExeName," + $EXENAME;
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", "40";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		call _common_removelastsep dderequest("getstring BaseDir");
+		call _common_casechange 0, $$return;
+		$REG_VALUE[0] = $$return;
+		call _common_casechange 0, dderequest("getstring ExeName");
+		$REG_VALUE[1] = $$return;
+		call _kernel_writeenumdatastr $REG_K_PI_BASE, 2;
+	}
+	call _kernel_exitms;
+	return;
+
+_local_paramconfig:
+	$MKIDX_KEY_NUM[0] = "Letter";
+	$MKIDX_KEY_NUM[1] = "PageForm";
+	$MKIDX_KEY_NUM[2] = "Blank";
+	$MKIDX_KEY_NUM[3] = "JapaneseHead";
+	$MKIDX_KEY_NUM[4] = "ForceKanji";
+	$MKIDX_KEY_STR[0] = "Style";
+	$MKIDX_KEY_STR[1] = "Output";
+	$MKIDX_KEY_STR[2] = "Dic";
+	$MKIDX_KEY_STR[3] = "Log";
+	$MKIDX_KEY_STR[4] = "Start";
+	##a = 0;
+	while( ##a < 5 ){
+		$REG_ENUM[##a] = $MKIDX_KEY_NUM[##a];
+		##a = ##a + 1;
+	}
+	call _kernel_getenumdatanum $REG_K_PI_BASE, 5;
+	##a = 0;
+	while( ##a < 5 ){
+		$REG_ENUM[##a] = $MKIDX_KEY_STR[##a];
+		##a = ##a + 1;
+	}
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 5;
+	##a = 0;
+	while( ##a < 5 ){
+		#MKIDX_PARAM_NUM[##a] = #REG_VALUE[##a];
+		$MKIDX_PARAM_STR[##a] = $REG_VALUE[##a];
+		##a = ##a + 1;
+	}
+
+	call _kernel_runms;
+	if( !##return ) return;
+	title "CREATING DIALOG";
+	ddepoke "newdialog", "26," + 
+		getinistr($MSGINI,"DialogMessages","ParamConfig");
+	ddepoke "newcontrol", "text,,MakeIndex の設定";
+	##a = 0;
+	while( ##a < 5 ){
+		ddepoke "newcontrol", "check,MkIdx_Num_"+str(##a)+","+
+			getinistr($MSGINI,"DialogMessages","MkIdx_Num_"+str(##a));
+		ddepoke "default", str(#MKIDX_PARAM_NUM[##a]);
+		##a = ##a + 1;
+	}
+	ddepoke "newcolumn", "34";
+	ddepoke "newcontrol", "text,, ";
+	##a = 0;
+	while( ##a < 5 ){
+		ddepoke "newcontrol", "text,,"+
+			getinistr($MSGINI,"DialogMessages","MkIdx_Str_"+str(##a));
+		ddepoke "part", "16";
+		ddepoke "newcontrol", "edit,MkIdx_Str_"+str(##a)+","+
+			$MKIDX_PARAM_STR[##a];
+		##a = ##a + 1;
+	}
+	ddepoke "newpage", "48";
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", "24";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return == "0" ){
+		call _kernel_exitms;
+		return;
+	}
+
+	##a = 0;
+	while( ##a < 5 ){
+		#REG_VALUE[##a] = val(dderequest("getstate MkIdx_Num_"+str(##a)));
+		$REG_VALUE[##a] = dderequest("getstring MkIdx_Str_"+str(##a));
+		##a = ##a + 1;
+	}
+	call _kernel_exitms;
+	call _kernel_writeenumdatastr $REG_K_PI_BASE, 5;
+	##a = 0;
+	while( ##a < 5 ){
+		$REG_ENUM[##a] = $MKIDX_KEY_NUM[##a];
+		##a = ##a + 1;
+	}
+	call _kernel_writeenumdatanum $REG_K_PI_BASE, 5;
+	return;
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

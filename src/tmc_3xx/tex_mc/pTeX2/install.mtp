@@ -1,0 +1,259 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				INSTALLATION MANAGEMENT
+//	PLATFORM			ASCII-pTeX 2.1.X (Console)
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは ASCII-pTeX 専用です。										//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"pTeX2";
+
+//	レジストリキーの定義
+#REG_VERSION			=	%VER_MINOR%;
+$REG_ROOT				=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION			=	"VersionInfo";
+$REG_K_MACROCONFIG		=	"MacroConfig";
+$REG_K_PLATFORM			=	"Platform\\" + $PNAME;
+$REG_K_P_TEXWARE		=	$REG_K_PLATFORM + "\\TeXware";
+$REG_K_P_DVIWARE		=	$REG_K_PLATFORM + "\\DVIware";
+$REG_K_P_MKIDXWARE		=	$REG_K_PLATFORM + "\\MkIdxware";
+$REG_K_P_BIBTEXWARE		=	$REG_K_PLATFORM + "\\BibTeXware";
+$REG_K_FORMAT			=	"FormatMenu";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Macro Config Information
+call _kernel_getdatastr $REG_K_MACROCONFIG, "HmOpenOption";
+$OPTIONS  = $$return;
+
+//	文字列定義Iniファイル
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	補助ツールのフォルダ名及びツール起動時のコマンドライン
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$LFNCMD		=	"\"" + $TOOLDIR + "\\getlfn.exe\" ";	//	空白ＯＫ
+$LFNINI		=	$TOOLDIR + "\\getlfn.ini";
+$MKFMTDBCMD	=	"\"" + $TOOLDIR + "\\mkfmtdb.exe\" ";	//	空白ＯＫ
+
+$FMTINI	=	$MACRODIR + "\\" + $PNAME + "\\fmtname.ini";
+
+
+main:
+	call _kernel_getdatastr $REG_K_PLATFORM, "PlatformName";
+	$SP_PNAME = $$return;
+	call _kernel_getdatanum $REG_K_PLATFORM, "InstalledWareFlag";
+	#INST_SP_PTYPE = ##return;
+
+	if( !(#INST_SP_PTYPE&1) ){
+		message "pTeX のバージョンを次から選んで下さい。";
+		menu	"pTeX2.1.4",
+				"pTeX2.1.5(以降)";
+		if( result != 2 ){
+			$EXENAME_PREFIX = "vir";
+			$FMT_HEADER = "&";
+		} else {
+			$EXENAME_PREFIX = "";
+			$FMT_HEADER = "-fmt=";
+		}
+		$TEXMF = getenv("TEXMF");
+		if( strstr($TEXMF,"ptex") != -1 ) $TEXDIR = leftstr($TEXMF,2)+"\\ptex";
+		else if( $TEXMF != "" ) $TEXDIR = leftstr($TEXMF,2) + "\\usr\\local";
+		else $TEXDIR = "c:\\usr\\local";
+		$BASEDIR_VIRTEX = $TEXDIR + "\\bin";
+		if( !existfile($BASEDIR_VIRTEX+"\\"+$EXENAME_PREFIX+"ptex.exe") ){
+			_input_folder_virtex:
+			call _install_inputfoldername $SP_PNAME, $BASEDIR_VIRTEX;
+			if( $$return != "" ) $BASEDIR_VIRTEX = $$return;
+			else {
+				$MSGARG[0] = "VirTeX";
+				call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+				if( ##return ) goto _makeindex;
+				else goto _input_folder_virtex;
+			}
+		}
+		call _install_getlongfilename $BASEDIR_VIRTEX+"\\foo.txt";
+		$BASEDIR_VIRTEX = $DIRECTORY;
+		$TEXDIR = leftstr($BASEDIR_VIRTEX,strstr($BASEDIR_VIRTEX,"\\bin"));
+
+		_makeformatmenu:
+		call _local_getformatmenu $TEXDIR;
+		if( ##return ) #FORMATNUM = ##return;
+		else {
+			$MSGARG[0] = "VirTeX";
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) goto _makeindex;
+			else goto _makeformatmenu;
+		}
+
+		_reg_virtex:
+		title $SP_PNAME + " 構成情報の書き込み中...";
+		##a = 0;
+		while( ##a < #FORMATNUM ){
+			$REG_ENUM[##a] = str(##a);
+			$REG_VALUE[##a] = $FORMATMENU[##a];
+			##a = ##a + 1;
+		}
+		call _kernel_writeenumdatastr $REG_K_FORMAT+"\\"+$PNAME, #FORMATNUM;
+		call _kernel_writedatanum $REG_K_FORMAT+"\\"+$PNAME,"Num",#FORMATNUM;
+		$REG_ENUM[0] = "BaseDir";
+		$REG_ENUM[1] = "FormatDir";
+		$REG_ENUM[2] = "CmdArgv_0";
+		$REG_ENUM[3] = "CmdArgv_1";
+		$REG_ENUM[4] = "CmdArgv_2";
+		$REG_ENUM[5] = "CmdArgv_3";
+		$REG_ENUM[6] = "0";
+		$REG_ENUM[7] = "1";
+		$REG_ENUM[8] = "2";
+		$REG_ENUM[9] = "3";
+		$REG_VALUE[0] = $BASEDIR_VIRTEX;
+		$REG_VALUE[1] = $FORMATDIR;
+		$REG_VALUE[2] = $EXENAME_PREFIX + "tex.exe:" + $FMT_HEADER + ":";
+		$REG_VALUE[3] = $EXENAME_PREFIX + "ptex.exe:" + $FMT_HEADER + ":";
+		$REG_VALUE[4] = "pdftex.exe:-fmt=:";
+		$REG_VALUE[5] = "virjtex.exe:&:";
+		$REG_VALUE[6] = "TeX";
+		$REG_VALUE[7] = "pTeX";
+		$REG_VALUE[8] = "PDFTeX";
+		$REG_VALUE[9] = "NTT-JTeX";
+		call _kernel_writeenumdatastr $REG_K_P_TEXWARE, 10;
+		call _kernel_writedatanum $REG_K_P_TEXWARE, "Num", 10;
+		title 0;
+		#INST_SP_PTYPE = #INST_SP_PTYPE | 1;
+	} else {
+		call _kernel_getdatastr $REG_K_P_TEXWARE, "BaseDir";
+		$BASEDIR_VIRTEX = $$return;
+	}
+
+	_makeindex:
+	if( !(#INST_SP_PTYPE&4) ){
+		call _local_wareconfig "MakeIndex", "MkIdx", "mendex", "makeindex", 4;
+	}
+
+	_bibtex:
+	if( !(#INST_SP_PTYPE&8) ){
+		call _local_wareconfig "BibTeX", "BibTeX", "jbibtex", "bibtex", 8;
+	}
+
+	call _install_exitinstall 0;
+	endmacro;	//	not reached.
+
+//	End of Main
+
+
+_local_getformatmenu:
+	if( $EXENAME_PREFIX == "" ) $INIDIR = "\\share\\texmf\\web2c";
+	else $INIDIR = "\\texmf\\ini";
+	$FORMATDIR = $$1 + $INIDIR;
+
+	__get_formattable:
+	call _kernel_runms;
+	ddeexecute "enumfile \"" + $FORMATDIR + "\\*.fmt\"";
+	##a = 0;
+	while( 1 ){
+		$$f_name[##a] = dderequest("findnext");
+		if( $$f_name[##a] == "" ) break;
+		else $$f_name[##a] = leftstr($$f_name[##a],strlen($$f_name[##a])-4);
+		##a = ##a + 1;
+	}
+	##f_num = ##a;
+	call _kernel_exitms;
+
+	if( !##f_num ){
+		if( ##retry ){
+			question "フォーマットファイルが一つも見つかりません。\n" + 
+					"フォルダ名の入力をやり直しますか？";
+			if( !result ) return 0;
+		}
+		__input_formatdir:
+		$FORMATDIR = input($SP_PNAME + " のフォーマットファイルのある\n" + 
+						"フォルダ名を入力して下さい。", $$1+$INIDIR);
+		if( (!result) || $FORMATDIR == "" ){
+			$MSGARG[0] = "VirTeX";
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) return 0;
+			goto __input_formatdir;
+		}
+		call _common_removelastsep $FORMATDIR;
+		call _install_getlongfilename $$return + "\\foo.txt";
+		$FORMATDIR = $DIRECTORY;
+		##retry = 1;
+		goto __get_formattable;
+	}
+
+	##a = 0;
+	while( ##a < ##f_num ){
+		if( strstr($$f_name[##a],"j") + 1 ) $$f_info = "3";
+		else if( strstr($$f_name[##a],"pdf") + 1 ) $$f_info = "2";
+		else if( strstr($$f_name[##a],"p") + 1 ) $$f_info = "1";
+		else $$f_info = "0";
+		$$mn = getinistr($FMTINI,"FormatMenuName",$$f_name[##a]);
+		if( $$mn == "" ) $$mn = $$f_name[##a];
+		$FORMATMENU[##a] = $$f_info + $$f_name[##a] + ":" + $$mn;
+		##a = ##a + 1;
+	}
+
+	return ##f_num;
+
+_local_wareconfig:
+	$$f[0] = $$3 + ".exe";
+	$$f[1] = $$4 + ".exe";
+	$REG_ENUM[0] = "BaseDir";
+	$REG_ENUM[1] = "ExeName";
+	$REG_VALUE[0] = $BASEDIR_VIRTEX;
+	_check_exist:
+	##e[0] = existfile($BASEDIR_VIRTEX+"\\"+$$f[0]);
+	##e[1] = existfile($BASEDIR_VIRTEX+"\\"+$$f[1]);
+	if( !(##e[0]+##e[1]) ){
+		_input_folder_config:
+		call _install_inputfoldername $$1, $BASEDIR_VIRTEX;
+		if( $$return == "" ){
+			$MSGARG[0] = $$1;
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) return;
+			else goto _input_folder_config;
+		}
+		call _install_getlongfilename $$return;
+		$REG_VALUE[0] = $DIRECTORY;
+		goto _check_exist;
+	}
+	if( ##e[0]*##e[1] ){
+		_select_file:
+		message "お使いになる " + $$1 + " を次から選んで下さい。";
+		menu	"(&0)\t" + $$f[0],
+				"(&1)\t" + $$f[1];
+		if( !result ){
+			$MSGARG[0] = $$1;
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( !##return ) goto _select_file;
+			else return;
+		} else ##s = result - 1;
+	} else ##s = ##e[1]&1;
+	$REG_VALUE[1] = $$f[##s];
+
+	_reg_config:
+	title $SP_PNAME + " 構成情報の書き込み中...";
+	call _kernel_writeenumdatastr $REG_K_PLATFORM + "\\" + $$2 + "ware", 2;
+	title 0;
+	#INST_SP_PTYPE = #INST_SP_PTYPE|##5;
+	return;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

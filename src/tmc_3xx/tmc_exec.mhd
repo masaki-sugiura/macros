@@ -1,0 +1,12 @@
+//	Module Control Kernel Macro (tmc_krnl.mac) に渡すモジュール実行フラグ
+#EXEC_VIRTEX	=	 1;	//	TeXコンパイルの実行
+#EXEC_PREVIEW	=	 2;	//	Previewerの実行
+//	他のモジュールは自動実行するように変更(from Ver.3.1.0)
+
+//	同 デフォルト動作変更定義フラグ
+#FLAG_STARTBIT	=	256;
+#FLAG_COMPILEFORCED	=	  #FLAG_STARTBIT;	//	タイムスタンプ比較をしない
+#FLAG_SUBCOMP		=	2*#FLAG_STARTBIT;	//	一部分だけコンパイル実行中
+#FLAG_PRJCOMP		=	4*#FLAG_STARTBIT;	//	プロジェクト処理実行中
+#FLAG_COMPILEONCE	=	8*#FLAG_STARTBIT;	//	１回だけコンパイル
+

@@ -1,0 +1,34 @@
+MAKE = nmake
+MKFLAG = /f
+
+BASEDIR = c:\hidemaru\macros
+LIBDIR = $(BASEDIR)\src\libdir
+SRCDIR = $(BASEDIR)\src\tmc_cur
+#	Subdir is null or "\" terminated string.
+MACDIR = $(BASEDIR)\$(SUBDIR)
+
+LDCMD = gen_mac.cmd
+LD = $(LIBDIR)\$(LDCMD)
+
+MV = copy
+
+OBJS = $(SRCS:.mtp=.mac)
+INIS = $(ITPS:.itp=.ini)
+
+.SUFFIXES:	.mac	.mtp	.ini	.itp
+
+.mtp.mac:
+	$(LD) $(SRCDIR) $(SUBDIR)$<
+	$(MV) $(SRCDIR)\$(SUBDIR)$(*F).mac $(MACDIR)
+	if exist $(SRCDIR)\$(SUBDIR)instinfo.ini del $(SRCDIR)\$(SUBDIR)instinfo.ini
+	if exist $(SRCDIR)\$(SUBDIR)ver_up.dat del $(SRCDIR)\$(SUBDIR)ver_up.dat
+
+.itp.ini:
+	$(LD) $(SRCDIR) $(SUBDIR)$<
+	$(MV) $(SRCDIR)\$(SUBDIR)$(*F).ini $(MACDIR)
+	if exist $(SRCDIR)\$(SUBDIR)ver_up.dat del $(SRCDIR)\$(SUBDIR)ver_up.dat
+
+this	:	$(OBJS) $(INIS)
+
+clean_this	: ;	$(SRCDIR)\clean.cmd $(SRCDIR)\$(SUBDIR)
+

@@ -1,0 +1,131 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT
+//	PLATFORM			TeX for Windows
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロはインプレスラボの TeX for Windows 専用です。					//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$DVIWARE	=	"WinTeX";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_PI_BASE	=	"Platform\\" + $DVIWARE +"\\DVIware";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+
+//	Main Routine
+main:
+	menu	"(&D)\tフォルダ/ファイル名関連の設定",
+			"(&P)\t動作定義パラメータ関連の設定";
+	if( !result ) endmacro;
+	else if( result == 1 ) call _local_envconfig;
+	else if( result == 2 ) call _local_paramconfig;
+	goto main;
+
+//	End of Main
+
+_local_envconfig:
+	$REG_ENUM[0]	=	"CmdArgv_0";
+	$REG_ENUM[1]	=	"CmdArgv_1";
+	$REG_ENUM[2]	=	"CmdArgv_2";
+	$REG_ENUM[3]	=	"BaseDir";
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 4;
+	$BASEDIR	=	$REG_VALUE[3];
+
+	##a = 0;
+	while( ##a < 3 ){
+		$TBSTR_DEF[##a]
+			= midstr($REG_VALUE[##a],strstr($REG_VALUE[##a],":")+1,32);
+		##a = ##a + 1;
+	}
+
+	call _kernel_getdatanum $REG_K_PI_BASE, "CmdArgv";
+	#WINDVITYPE = ##return;
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+	ddepoke "newdialog", "60," + 
+		getinistr($MSGINI,"DialogMessages","EnvConfig");
+	ddepoke "newcontrol", "text,," + 
+		getinistr($MSGINI,"DialogMessages","Directory_0");
+	ddepoke "part", "30";
+	ddepoke "newcontrol", "edit,BaseDir," + $BASEDIR;
+	ddepoke "newcontrol", "list,TBStr," + 
+		getinistr($MSGINI,"DialogMessages","TitleBarString");
+	##a = 0;
+	while( ##a < 3 ){
+		ddepoke "item", $TBSTR_DEF[##a];
+		##a = ##a + 1;
+	}
+	ddepoke "default", str(#WINDVITYPE+1);
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", "40";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		call _common_removelastsep dderequest("getstring BaseDir");
+		call _common_casechange 0, $$return;
+		call _kernel_writedatastr $REG_K_PI_BASE, "BaseDir", $$return;
+		call _kernel_writedatanum $REG_K_PI_BASE, "CmdArgv",
+			val(dderequest("getstate TBStr")) - 1;
+	}
+	call _kernel_exitms;
+	return;
+
+_local_paramconfig:
+	call _kernel_getdatanum $REG_K_PI_BASE, "Reopen";
+	#REOPEN = ##return;
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+	ddepoke "newdialog", "40," + 
+		getinistr($MSGINI,"DialogMessages","ParamConfig");
+	ddepoke "newcontrol", "check,Reopen," + 
+		getinistr($MSGINI,"DialogMessages","Reopen");
+	ddepoke "default", str(#REOPEN);
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		call _kernel_writedatanum $REG_K_PI_BASE, "Reopen",
+			val(dderequest("getstate Reopen"));
+	}
+	call _kernel_exitms;
+	return;
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

@@ -1,0 +1,299 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT
+//	PLATFORM			ASCII-pTeX 2.1.X (Console)
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは ASCII-pTeX 専用です。										//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$TEXWARE	=	"pTeX2";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Registry Data
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_PLATFORM	=	"Platform";
+$REG_K_PI_BASE	=	$REG_K_PLATFORM + "\\" + $TEXWARE + "\\TeXware";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+$FMTINI	=	$MACRODIR + "\\" + $TEXWARE + "\\fmtname.ini";
+
+#E_NUM_MAX = 8;
+
+//	Main Routine
+main:
+	menu	"(&D)\tフォルダ/ファイル名関連の設定",
+			"(&F)\tフォーマットファイル関連の設定",
+			"(&P)\t動作定義パラメータ関連の設定";
+	if( !result ) endmacro;
+	else if( result == 1 ) call _local_envconfig;
+	else if( result == 2 ) call _local_formatconfig;
+	else if( result == 3 ) call _local_paramconfig;
+	goto main;
+
+//	End of Main
+
+_local_envconfig:
+	$REG_ENUM[0] = "BaseDir";
+	$REG_ENUM[1] = "FormatDir";
+	$REG_ENUM[2] = "DviPdfm";
+	$REG_ENUM[3] = "Out2Uni";
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 4;
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+
+	ddepoke "newdialog", "60," + 
+		getinistr($MSGINI,"DialogMessages","EnvConfig");
+	##a = 0;
+	while (##a < 2) {
+		ddepoke "newcontrol", "text,," + 
+			getinistr($MSGINI,"DialogMessages","Directory_"+str(##a));
+		ddepoke "part", "25";
+		ddepoke "newcontrol", "edit,Dir_" + str(##a) + "," + $REG_VALUE[##a];
+		##a = ##a + 1;
+	}
+	ddepoke "newcontrol", "text,,dvipdfm のファイル名＋オプション";
+	ddepoke "part", "25";
+	ddepoke "newcontrol", "edit,DviPdfm," + $REG_VALUE[2];
+	ddepoke "newcontrol", "text,,out2uni のファイル名＋オプション";
+	ddepoke "part", "25";
+	ddepoke "newcontrol", "edit,Out2Uni," + $REG_VALUE[3];
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", "40";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if ($$return != "0") {
+		##a = 0;
+		while (##a < 2) {
+			call _common_removelastsep dderequest("getstring Dir_"+str(##a));
+			call _common_casechange 0, $$return;
+			$REG_VALUE[##a] = $$return;
+			##a = ##a + 1;
+		}
+		$REG_VALUE[2] = dderequest("getstring DviPdfm");
+		$REG_VALUE[3] = dderequest("getstring Out2Uni");
+		call _kernel_writeenumdatastr $REG_K_PI_BASE, 4;
+	}
+	call _kernel_exitms;
+	return;
+
+_local_formatconfig:
+	$REG_K_FORMAT = "FormatMenu\\" + $TEXWARE;
+	$$reg_k_format_input = "";
+	menu	"(&C)\tフォーマット設定の変更",
+			"(&R)\tフォーマットメニューの再構築";
+	if( !result ) return;
+	else if( result == 1 ) $$reg_k_format_input = $REG_K_FORMAT;
+
+	//	実行ファイルの登録数/名前の取得
+	call _kernel_getdatanum $REG_K_PI_BASE, "Num";
+	#E_NUM = ##return;
+	##a = 0;
+	while( ##a < #E_NUM ){
+		$REG_ENUM[##a] = str(##a);
+		##a = ##a + 1;
+	}
+	call _kernel_getenumdatastr $REG_K_PI_BASE, #E_NUM;
+	##a = 0;
+	while( ##a < #E_NUM ){
+		$$t_name[##a] = $REG_VALUE[##a];
+		##a = ##a + 1;
+	}
+
+	//	フォーマットファイルのリスト取得
+	if( $$reg_k_format_input != "" ){
+		call _kernel_getdatanum $$reg_k_format_input,"Num";
+		if( !##return ){
+			call _kernel_showmsg 0, "Error_Module_noFormat";
+			return;
+		} else ##num = ##return;
+		##a = 0;
+		while( ##a < ##num ){
+			$REG_ENUM[##a] = str(##a);
+			##a = ##a + 1;
+		}
+		call _kernel_getenumdatastr $$reg_k_format_input, ##num;
+		##a = 0;
+		while( ##a < ##num ){
+			##s = strstr($REG_VALUE[##a],":");
+			$$t_type[##a] = leftstr($REG_VALUE[##a],1);
+			$$f_name[##a] = midstr($REG_VALUE[##a],1,##s-1);
+			$$m_name[##a] = midstr($REG_VALUE[##a],##s+1,255);
+			##a = ##a + 1;
+		}
+	} else {
+		call _kernel_getdatastr $REG_K_PI_BASE, "FormatDir";
+		$FORMATDIR = $$return;
+		call _kernel_runms;
+		if( !##return ) return;
+		ddeexecute "enumfile \"" + $FORMATDIR + "\\*.fmt\"";
+		##a = 0;
+		while( 1 ){
+			$$fn = dderequest("findnext");
+			if( $$fn == "" ) break;
+			call _common_casechange 0, leftstr($$fn,strlen($$fn)-4);
+			$$f_name[##a] = $$return;
+			$$m_name[##a] = getinistr($FMTINI,"FormatMenuName",$$f_name[##a]);
+			$$t_type[##a] = "0";
+			##a = ##a + 1;
+		}
+		##num = ##a;
+		call _kernel_exitms;
+	}
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+	ddepoke "newdialog", "50," + 
+		getinistr($MSGINI,"DialogMessages","FormatConfig");
+	ddepoke "newcontrol", "text,,Format File 名";
+	ddepoke "part", "15";
+	ddepoke "newcontrol", "text,,TeX の種類";
+	ddepoke "part", "15";
+	ddepoke "newcontrol", "text,,メニュー文字列";
+	ddepoke "part", "15";
+	ddepoke "newcontrol", "text,,";
+	##a = 0;
+	while( ##a < ##num ){
+		ddepoke "newcontrol", "text,," + $$f_name[##a] + ".fmt";
+		ddepoke "part", "15";
+		ddepoke "newcontrol", "list,TeXType_" + str(##a) + ",";
+		##b = 0;
+		while( ##b < #E_NUM ){
+			ddepoke "item", $$t_name[##b];
+			##b = ##b + 1;
+		}
+		ddepoke "default", str(val($$t_type[##a])+1);
+		ddepoke "height", "1";
+		ddepoke "part", "15";
+		ddepoke "newcontrol", "edit,MenuName_"+str(##a)+","+$$m_name[##a];
+		##a = ##a + 1;
+	}
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		##a = 0;
+		##b = 0;
+		while( ##a < ##num ){
+			$$mn = dderequest("getstring MenuName_"+str(##a));
+			if( $$mn != "" ){
+				$REG_ENUM[##b] = str(##b);
+				##t_type = val(dderequest("getstate TeXType_"+str(##a))) - 1;
+				$REG_VALUE[##b] = str(##t_type) + $$f_name[##a] + ":" + $$mn;
+				##b = ##b + 1;
+			}
+			##a = ##a + 1;
+		}
+		call _kernel_writeenumdatastr $REG_K_FORMAT, ##b;
+		call _kernel_writedatanum $REG_K_FORMAT, "Num", ##b;
+	}
+	call _kernel_exitms;
+	return;
+
+_local_paramconfig:
+	call _kernel_getdatastr $REG_K_PI_BASE, "Num";
+	#E_NUM = ##return;
+
+	##a = 0;
+	while( ##a < #E_NUM_MAX ){
+		$REG_ENUM[2*##a] = "CmdArgv_" + str(##a);
+		$REG_ENUM[2*##a+1] = str(##a);
+		##a = ##a + 1;
+	}
+	call _kernel_getenumdatastr $REG_K_PI_BASE, 2*#E_NUM_MAX;
+	call _kernel_getdatanum $REG_K_PI_BASE, "UseDviPdfm";
+	##usedvipdfm = ##return;
+
+	title "CREATING DIALOG";
+	call _kernel_runms;
+	if( !##return ) return;
+
+	ddepoke "newdialog", "60," + 
+		getinistr($MSGINI,"DialogMessages","ParamConfig");
+	ddepoke "newcontrol", "text,,TeX の種類";
+	ddepoke "part", "15";
+	ddepoke "newcontrol", "text,,実行ファイル名";
+	ddepoke "part", "15";
+	ddepoke "newcontrol", "text,,FMT 指定ヘッダ";
+	ddepoke "part", "15";
+	ddepoke "newcontrol", "text,,オプション";
+	ddepoke "part", "15";
+	ddepoke "newcontrol", "text,,";
+	##a = 0;
+	while( ##a < #E_NUM_MAX ){
+		$$s = $REG_VALUE[2*##a];
+		$$n = $REG_VALUE[2*##a+1];
+		ddepoke "newcontrol", "edit,ExeType_"+str(##a)+","+$$n;
+		ddepoke "part", "15";
+		ddepoke "newcontrol", "edit,Exe_" + str(##a) + "," + 
+			leftstr($$s,strstr($$s,":"));
+		$$s = midstr($$s,strstr($$s,":")+1,255);
+		ddepoke "part", "15";
+		ddepoke "newcontrol", "edit,Fmt_" + str(##a) + "," + 
+			leftstr($$s,strstr($$s,":"));
+		ddepoke "part", "15";
+		ddepoke "newcontrol", "edit,Opt_" + str(##a) + "," + 
+			midstr($$s,strstr($$s,":")+1,255);
+		##a = ##a + 1;
+	}
+	ddepoke "newcontrol",
+			"check,UseDviPdfm,PDF ファイルの出力に dvipdfm を使う";
+	ddepoke "default", str(##usedvipdfm);
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return != "0" ){
+		##a = 0;
+		while( 1 ){
+			$REG_ENUM[2*##a] = "CmdArgv_"+str(##a);
+			$REG_ENUM[2*##a+1] = str(##a);
+			$REG_VALUE[2*##a] = dderequest("getstring Exe_"+str(##a)) + ":" + 
+								dderequest("getstring Fmt_"+str(##a)) + ":" + 
+								dderequest("getstring Opt_"+str(##a));
+			$REG_VALUE[2*##a+1] = dderequest("getstring ExeType_"+str(##a));
+			if( $REG_VALUE[2*##a+1] == "" ) break;
+			##a = ##a + 1;
+		}
+		call _kernel_writeenumdatastr $REG_K_PI_BASE, 2*##a;
+		call _kernel_writedatanum $REG_K_PI_BASE, "Num", ##a;
+		call _kernel_writedatanum $REG_K_PI_BASE, "UseDviPdfm",
+			val(dderequest("getstate UseDviPdfm"));
+	}
+	call _kernel_exitms;
+	return;
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

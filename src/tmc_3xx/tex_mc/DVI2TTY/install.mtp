@@ -1,0 +1,120 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				INSTALLATION MANAGEMENT
+//	PLATFORM			dvi2tty
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは dvi2tty 専用です。											//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$PNAME	=	"DVI2TTY";
+
+//	レジストリキーの定義
+#REG_VERSION			=	%VER_MINOR%;
+$REG_ROOT				=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_VERSION			=	"VersionInfo";
+$REG_K_MACROCONFIG		=	"MacroConfig";
+$REG_K_PLATFORM			=	"Platform\\" + $PNAME;
+$REG_K_P_DVIWARE		=	$REG_K_PLATFORM + "\\DVIware";
+$REG_K_FORMAT			=	"FormatMenu";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	文字列定義Iniファイル
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	補助ツールのフォルダ名及びツール起動時のコマンドライン
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$LFNCMD		=	"\"" + $TOOLDIR + "\\getlfn.exe\" ";
+$LFNINI		=	$TOOLDIR + "\\getlfn.ini";
+
+
+main:
+	call _kernel_getdatastr $REG_K_PLATFORM, "PlatformName";
+	$SP_PNAME = $$return;
+	call _kernel_getdatanum $REG_K_PLATFORM, "InstalledWareFlag";
+	#INST_SP_PTYPE = ##return;
+
+	if( #INST_SP_PTYPE & 2 ) call _install_exitinstall 0;
+
+	$TEXMF = getenv("TEXMF");
+	if( strstr($TEXMF,"ptex") != -1 ) $TEXDIR = leftstr($TEXMF,2)+"\\ptex";
+	else if( $TEXMF != "" ) $TEXDIR = leftstr($TEXMF,2) + "\\usr\\local";
+	else $TEXDIR = "c:\\usr\\local";
+	$BASEDIR = $TEXDIR + "\\bin";
+
+	##exe_num = 2;
+	$$exename[0] = "jdvi2tty";
+	$$exename[1] = "dvi2tty";
+	##a = 0;
+	while( ##a < ##exe_num ){
+		if( existfile($BASEDIR+"\\"+$$exename[##a]+".exe") ) break;
+		##a = ##a + 1;
+	}
+	if( ##a == ##exe_num ){
+		_input_folder_dvips:
+		call _install_inputfoldername "dvi2tty", $BASEDIR;
+		if( $$return != "" ) $BASEDIR = $$return;
+		else {
+			$MSGARG[0] = "dvi2tty";
+			call _kernel_showmsg 1, "Question_Inst_SkipInstall";
+			if( ##return ) call _install_exitinstall 0;
+			else goto _input_folder_dvips;
+		}
+	}
+	call _install_getlongfilename $BASEDIR+"\\foo.txt";
+	$BASEDIR = $DIRECTORY;
+	##a = 0;
+	##m = 0;
+	while( ##a < ##exe_num ){
+		if( existfile($BASEDIR+"\\"+$$exename[##a]+".exe") ){
+			##exe_id[##m] = ##a;
+			$$exe_menu[##m] = $$exename[##a];
+			##m = ##m + 1;
+		}
+		##a = ##a + 1;
+	}
+	if( !##m ) ##exe_sel = 0;
+	else if( ##m == 1 ) ##exe_sel = ##exe_id[0];
+	else {
+		message "複数の dvi2tty が見つかりました。\n" + 
+				"どの dvi2tty を使用するか選択して下さい。";
+		menuarray $$exe_menu, ##m;
+		if( !result ) ##exe_sel = 0;
+		else ##exe_sel = result - 1;
+	}
+	$EXENAME = $$exename[##exe_sel];
+
+	title $SP_PNAME + " 構成情報の書き込み中...";
+	$REG_ENUM[0] = "BaseDir";
+	$REG_ENUM[1] = "CmdArgv";
+	$REG_VALUE[0] = $BASEDIR;
+	$REG_VALUE[1] = $EXENAME;
+	call _kernel_writeenumdatastr $REG_K_P_DVIWARE, 2;
+	#INST_SP_PTYPE = #INST_SP_PTYPE | 2;
+	title 0;
+
+	call _install_exitinstall 0;
+	endmacro;	//	not reached.
+
+//	End of Main
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

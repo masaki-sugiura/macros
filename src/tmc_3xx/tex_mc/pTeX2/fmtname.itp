@@ -1,0 +1,24 @@
+;	Format ‚Ì–¼‘O‚ÌŒó•â
+
+[FormatMenuName]
+tex=plain TeX
+ptex=plain pTeX
+latex=LaTeX
+platex=pLaTeX
+texold=Old plain TeX
+ptexold=Old plain pTeX
+latexold=Old LaTeX
+platexold=Old pLaTeX
+latex209=LaTeX 2.09
+platex209=pLaTeX 2.09
+pdftex=PDFTeX
+pdflatex=PDFLaTeX
+alatex=AMSLaTeX
+alatex209=AMSLaTeX 2.09
+jtex=NTT-JTeX
+jlatex=NTT-JLaTeX
+jlatex209=NTT-JLaTeX 2.09
+etex=eTeX
+elatex=eLaTeX
+omega=Omega TeX
+lambda=Omega LaTeX

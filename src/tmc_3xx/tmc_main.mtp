@@ -1,0 +1,401 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				STARTUP
+//
+
+//	レジストリキー名の定義
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+$REG_K_FORMAT		=	"FormatMenu";
+$REG_K_PLATFORM		=	"Platform";
+
+//	マクロフォルダの取得
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	INI ファイル名の定義
+//	インストール情報定義ファイル
+$INSTINI	= $MACRODIR + "\\instinfo.ini";
+$PKGINI		= $MACRODIR + "\\pkg_inst.ini";
+//	メッセージ文字列定義ファイル
+$MSGINI		= $MACRODIR + "\\message.ini";
+//	動的データ定義ファイル
+$DYNINI		= $MACRODIR + "\\dyndata.ini";
+
+//	ソフトウェアサポートマクロ関係
+$SPINI	=	"instinfo.ini";
+$SPUPDMACRO	=	"update.mac";
+#SP_MAXNUM	=	30;
+
+$DVI_TYPE[0] = "DVI";
+$DVI_TYPE[1] = "PS";
+$DVI_TYPE[2] = "PDF";
+#DVI_TYPE_NUM = 3;
+
+//	初回起動かどうかのチェック(＆インストーラの実行)
+call _local_checkinstall;
+##regver_old = ##return;
+
+//	バージョンのチェック(＆アップデートマクロの実行)
+call _local_checkversion ##regver_old;
+
+//	グローバル変数の初期化
+//	Module Control Kernel Macro (tmc_krnl.mac) に渡すモジュール実行フラグ
+#EXEC_VIRTEX	=	 1;	//	TeXコンパイルの実行
+#EXEC_PREVIEW	=	 2;	//	Previewerの実行
+//	他のモジュールは自動実行するように変更(from Ver.3.1.0)
+
+//	同 デフォルト動作変更定義フラグ
+#FLAG_STARTBIT	=	256;
+#FLAG_COMPILEFORCED	=	  #FLAG_STARTBIT;	//	タイムスタンプ比較をしない
+#FLAG_SUBCOMP		=	2*#FLAG_STARTBIT;	//	一部分だけコンパイル実行中
+#FLAG_PRJCOMP		=	4*#FLAG_STARTBIT;	//	プロジェクト処理実行中
+#FLAG_COMPILEONCE	=	8*#FLAG_STARTBIT;	//	１回だけコンパイル
+
+//	$DYNINI 内のセクション名の定義
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義情報＆戻り値情報
+$DYN_PROJECT	=	"CurrentProjectInfo";	//	処理するファイルの情報
+
+//	GetLFN.exe に渡すコマンドライン及び結果を格納するINIファイル
+$TOOLDIR	=	$MACRODIR + "\\tools";
+$LFNCMD		=	"\"" + $TOOLDIR  + "\\getlfn.exe\" ";	//	空白対策(^^;
+$LFNINI		=	$TOOLDIR  + "\\getlfn.ini";
+
+
+/////	実行パート	/////
+
+//	マクロフォルダの登録をチェック＆書き換え
+call _kernel_getdatastr $REG_K_MACROCONFIG, "MacroDir";
+if ($$return != $MACRODIR) {
+	call _kernel_writedatastr $REG_K_MACROCONFIG, "MacroDir", $MACRODIR;
+}
+
+//	コマンドフラグの初期化
+writeininum $DYNINI, $DYN_MODULECMD, "ExecCmd", 0;
+
+//	一部分だけコンパイル＆プレビューの自動実行
+if (selecting) {
+	call _local_subcomp;
+	endmacro;
+}
+
+//	メインルーチン
+main:
+	#ACCEL_KEY_MAIN_NUM = %ACCELKEY_MAIN_NUM%;
+	//	メニュー定義文字列の設定
+	$ACCEL_KEY_ALL = "%ACCELKEY_ALL%";
+	call _kernel_getdatastr $REG_K_MACROCONFIG, "MenuSequence_Main";
+	$ACCEL_KEY = $$return;
+	if ($ACCEL_KEY == "") $ACCEL_KEY = "%ACCELKEY_DEF%";
+	//	ショートカットキーが押されていた場合への対処
+	$$k = char(keypressed);
+	if ($$k == "" || strstr($ACCEL_KEY_ALL, $$k) == -1) {
+		//	使用しているソフトウェア名の取得
+		$REG_ENUM[0] = "TeXware_Type";
+		$REG_ENUM[1] = "DVIware_Type";
+		$REG_ENUM[2] = "MkIdxware_Type";
+		$REG_ENUM[3] = "BibTeXware_Type";
+		call _kernel_getenumdatastr $REG_K_MACROCONFIG, 4;
+		//	現在のフォーマット名を取得
+		openreg "CURRENTUSER",
+			"Software\\" + $REG_ROOT + "\\" + $REG_K_FORMAT + "\\" + 
+			$REG_VALUE[0];
+		$$format = getregstr(str(getregnum("CurrentUsedFormat")));
+		closereg;
+		$$format = midstr($$format, strstr($$format,":") + 1, 32);
+		//	タイトル文字列の定義
+		$$title_str =  "T:" + $REG_VALUE[0] + "(" + $$format + ") D:" + 
+			$REG_VALUE[1] + " M:" + $REG_VALUE[2] + " B:" + $REG_VALUE[3];
+		//	現在の出力ファイルタイプを取得
+		call _kernel_getdatanum $REG_K_MACROCONFIG, "OutputType";
+		##outtype = ##return;
+		$$outputtype = "." + $DVI_TYPE[##outtype];
+		//	メニュー文字列の定義
+		##l = strlen($ACCEL_KEY);
+		##a = 0;
+		while (##a < ##l) {
+			$$k = midstr($ACCEL_KEY, ##a, 1);
+			if ($$k == "V")
+				$MENU[##a] = "(&V)\t(TeXコンパイルetc.＆)プレビュー";
+			else if ($$k == "T")
+				$MENU[##a] = "(&T)\t１回だけTeXコンパイル";
+			else if ($$k == "S")
+				$MENU[##a] = "(&S)\t一部分だけコンパイル＆プレビュー";
+			else if ($$k == "L") $MENU[##a] = "(&L)\tログファイルのオープン";
+			else if ($$k == "P") $MENU[##a] = "(&P)\tプロジェクト処理";
+			else if ($$k == "R") $MENU[##a] = "(&R)\tプロジェクト管理";
+			else if ($$k == "W") $MENU[##a] = "(&W)\t各処理の実行待ち : " + 
+											midstr("しないする",#STEP*6,6);
+			else if ($$k == "C") $MENU[##a] = "(&C)\t各種設定の変更";
+			else if ($$k == "F")
+				$MENU[##a] = "(&F)\tフォーマットの変更(現在は " + 
+					$$format + ")";
+			else if ($$k == "D")
+				$MENU[##a] = "(&D)\t使用するパッケージの変更";
+			else if ($$k == "M")
+				$MENU[##a] = "(&M)\tマクロ動作その他の設定の変更";
+			else if ($$k == "Z")
+				$MENU[##a] = "(&Z)\tメインメニューの項目変更";
+			else if ($$k == "H") $MENU[##a] = "(&H)\t高度な設定の変更";
+			else if ($$k == "O")
+				$MENU[##a] = "(&O)\t出力ファイルタイプの変更(現在は " + 
+					$$outputtype + ")";
+			else $MENU[##a] = "\t----------------------------";
+			##a = ##a + 1;
+			$$k = char(keypressed);
+			if ($$k != "" && strstr($ACCEL_KEY_ALL, $$k) != -1) goto __switch;
+		}
+		title $$title_str;
+		menuarray $MENU, ##l;
+		if (!result) endmacro;
+		else $$k = midstr($ACCEL_KEY, result - 1, 1);
+		title 0;
+	}
+	__switch:
+	if ($$k == "V" || $$k == "T") {
+		//	デフォルト動作～現在のファイルを(TeXコンパイル＆)プレビュー
+		if (updated) {
+			question filename + "\nは更新されています。\n保存しますか？";
+			if (result) save;
+			else {
+				question "処理を続行しますか？";
+				if (!result) endmacro;
+			}
+			##flag = #FLAG_COMPILEFORCED;
+		} else ##flag = 0;
+		if ($$k == "V") ##mode = #EXEC_VIRTEX | #EXEC_PREVIEW;
+		else {
+			//	１回だけコンパイル
+			##mode = #EXEC_VIRTEX;
+			##flag = ##flag | #FLAG_COMPILEONCE | #FLAG_COMPILEFORCED;
+		}
+		call _local_writecpinfo;
+		if (!##return) endmacro;
+		call _kernel_write_execcmd (##flag | ##mode);
+		call _kernel_execmacro "tmc_krnl.mac";
+		endmacro;
+	} else if ($$k == "S") {
+		//	一部分だけコンパイル＆プレビュー
+		call _local_subcomp;
+		endmacro;
+	} else if ($$k == "O") {
+		//	出力ファイルタイプの変更
+		call _local_changeoutputtype;
+	} else if ($$k == "L") {
+		//	ログファイルのオープン
+		//	pTeX のバージョンによる違いを考えて、basename3 を使用
+		call _kernel_openlogfile directory + "\\" + 
+			leftstr(basename3, strstr(basename3, ".") + 1) + "log";
+		endmacro;
+	} else if ($$k == "P") {
+		//	プロジェクト処理
+		call _local_writecpinfo;
+		if (!##return) endmacro;
+		call _kernel_execmacro "prj_comp.mac";
+		call _kernel_get_execcmd;
+		if (##return) {
+			call _kernel_write_execcmd 
+				(((##return - 1) * #FLAG_COMPILEFORCED) | #FLAG_PRJCOMP) |
+				(#EXEC_VIRTEX | #EXEC_PREVIEW);
+			call _kernel_execmacro "tmc_krnl.mac";
+		}
+		endmacro;
+	} else if ($$k == "R") {
+		//	プロジェクト管理
+		call _local_writecpinfo;
+		if (!##return) endmacro;
+		call _kernel_execmacro "prj_cfg.mac";
+		call _kernel_get_execcmd;
+		if (##return) {
+			call _kernel_write_execcmd 0;
+			endmacro;
+		}
+	} else if ($$k == "W") {
+		//	ステップ実行処理
+		#STEP = 1 - #STEP;
+	} else if ($$k == "C") {
+		//	各種設定の変更
+		call _kernel_execmacro "tmc_cfg.mac";
+	} else if ($$k != "|" && strstr($ACCEL_KEY_ALL, $$k) != -1) {
+		//	設定関係へのショートカット
+		call _kernel_write_execcmd 
+			strstr($ACCEL_KEY_ALL, $$k) - #ACCEL_KEY_MAIN_NUM;
+		call _kernel_execmacro "tmc_cfg.mac";
+	} else {
+		//	クレジット表示
+		$MSGARG[0] = $THISVERSION;
+		call _kernel_showmsg 0, "Message_Version";
+	}
+	goto main;
+
+//	End of Main
+
+_local_openlogfile:
+	if (findhidemaru($$log_file) != -1)
+		setactivehidemaru findhidemaru($$log_file);
+	else openfile $$log_file;
+	$$s_buf = searchbuffer; ##s_opt = searchoption;
+	gofiletop;
+	searchdown "^\\?[ \\t]*[exq]", regular;
+	if (result) searchup "^!", regular;
+	else gofileend;
+	escape;
+	setsearch $$s_buf, ##s_opt;
+	return;
+
+_local_subcomp:
+	call _local_writecpinfo;
+	if (!##return) return;
+	call _kernel_execmacro "sub_comp.mac";
+	call _kernel_get_execcmd;
+	if (##return) {
+		call _kernel_write_execcmd 
+			(#FLAG_COMPILEONCE|#FLAG_SUBCOMP) | (#EXEC_VIRTEX|#EXEC_PREVIEW);
+		call _kernel_execmacro "tmc_krnl.mac";
+	}
+	return;
+
+_local_changeoutputtype:
+	menu "(&1)\tDVI ファイル", "(&2)\tPS ファイル", "(&3)\tPDF ファイル";
+	if (!result) return;
+	##outtype = result - 1;
+	call _kernel_getdatastr $REG_K_MACROCONFIG,
+							"DVIware_" + $DVI_TYPE[##outtype];
+	if ($$return == "") {
+		message "このファイルタイプの DVIware が設定されていません。\n" + 
+				"設定についてはメインメニューの\n" + 
+				"「各種設定の変更」→「使用するパッケージの変更」の\n" + 
+				"「DVIware の変更」から行って下さい。";
+		return;
+	}
+	call _kernel_writedatastr $REG_K_MACROCONFIG, "DVIware_Type", $$return;
+	call _kernel_writedatanum $REG_K_MACROCONFIG, "OutputType", ##outtype;
+	return;
+
+_local_writecpinfo:
+	$$s = "";
+	##l = strlen(basename);
+	while (##l) {
+		##l = ##l - 1;
+		$$s = midstr(basename, ##l, 1);
+		if ($$s == ".") break;
+		else $$ext = $$s + $$ext;
+	}
+	call _kernel_getdatastr $REG_K_MACROCONFIG, "EnableControlExt";
+	if ((!##l) || strstr($$return + ".", "." + $$ext + ".") == -1) {
+		call _kernel_showmsg 0, "Error_Module_notTeXFile";
+		return 0;
+	}
+	if (strstr(directory,"~") != -1) {
+		call _kernel_runapp $LFNCMD + "\"" + filename + "\"";
+		if (!##return) return 0;
+		$FILENAME = getinistr($LFNINI, "Result", "basename");
+		if ($FILENAME == "") {
+			$MSGARG[0] = $TOOLDIR;
+			$MSGARG[1] = "getlfn.ini";
+			call _kernel_showmsg 0, "Error_Access_ForbiddenRead";
+			return 0;
+		}
+		$PROJECTDIR = getinistr($LFNINI, "Result", "directory");
+	} else {
+		$FILENAME = basename;
+		call _common_removelastsep directory;
+		$PROJECTDIR = $$return;
+	}
+	writeinistr $DYNINI, $DYN_PROJECT, "FileName", $FILENAME;
+	if (!result) {
+		$MSGARG[0] = $MACRODIR;
+		$MSGARG[1] = "dyndata.ini";
+		call _kernel_showmsg 0, "Error_Access_ForbiddenWrite";
+		return 0;
+	}
+	writeinistr $DYNINI, $DYN_PROJECT, "ProjectDir", $PROJECTDIR;
+
+	call _kernel_getdatanum $REG_K_MACROCONFIG, "SourceSpecials";
+	if (##return != 0) {
+		writeinistr $DYNINI, $DYN_PROJECT, "SrcFileName", $FILENAME;
+		writeininum $DYNINI, $DYN_PROJECT, "LineNumber", lineno;
+	} else {
+		writeinistr $DYNINI, $DYN_PROJECT, "SrcFileName", "";
+		writeininum $DYNINI, $DYN_PROJECT, "LineNumber", 0;
+	}
+
+	writeininum $DYNINI, $DYN_MODULECMD, "Wait", #STEP;
+	return 1;
+
+_local_checkinstall:
+	##c = 0;
+	__checkinstall_start:
+	openreg "CURRENTUSER", "Software\\" + $REG_ROOT;
+	if (!result) {
+		if (##c) call _local_incorrectinstall;
+		message "マクロ実行時に必要なデータベースにアクセスできません。\n" + 
+				"初回起動とみなし、インストールマクロを起動します。";
+		call _kernel_execmacro "tmc_inst.mac";
+		if (!##return) {
+			message "インストールマクロを起動できません。\n" + 
+					$MACRODIR + " に tmc_inst.mac があるか確認して下さい。";
+			endmacroall;
+		}
+		##c = 1;
+		goto __checkinstall_start;
+	}
+	##reg_ver = getregnum("Reg_Version");
+	closereg;
+	return ##reg_ver;
+
+_local_checkversion:
+	//	基本マクロのバージョンの確認
+	openreg "CURRENTUSER", "Software\\" + $REG_ROOT + "\\VersionInfo";
+	if (!result) call _local_incorrectinstall;
+	$$old_ver = getregstr("MacroVersion");
+	closereg;
+	$THISVERSION = getinistr($INSTINI, "Version", "MacroVersion");
+	#REG_VERSION = getininum($INSTINI, "Version", "Reg_Version");
+	if (#REG_VERSION > ##1 || $THISVERSION != $$old_ver) {
+		call _kernel_execmacro "update.mac";
+		if (!##return) {
+			message "アップデートマクロを起動できません。\n" + 
+					$MACRODIR + "に update.mac があるか確認して下さい。";
+			endmacroall;
+		}
+	}
+	//	ソフトウェア固有のマクロのバージョンの確認
+	call _kernel_getdatanum $REG_K_PLATFORM, "InstalledPlatform";
+	#INSTPLATFORM = ##return;
+	##id = 1;
+	##a = 0;
+	while (##a < #SP_MAXNUM) {
+		if ((##id & #INSTPLATFORM) == 0) goto __do_next;
+		call _kernel_getdatastr $REG_K_PLATFORM, str(##id);
+		if ($$return == "") goto __do_next;
+		$$sp_iname = $$return;
+		$$new_ver = getinistr($MACRODIR + "\\" + $$sp_iname + "\\" + $SPINI,
+							  "Info", "MacroVersion");
+		call _kernel_getdatastr $REG_K_PLATFORM + "\\" + $$sp_iname,
+								"MacroVersion";
+		if ($$return == $$new_ver) goto __do_next;
+		if (existfile($MACRODIR + "\\" + $$sp_iname + "\\" + $SPUPDMACRO))
+			call _kernel_execmacro $$sp_iname + "\\" + $SPUPDMACRO;
+		call _kernel_writedatastr $REG_K_PLATFORM + "\\" + $$sp_iname,
+								  "MacroVersion", $$new_ver;
+__do_next:
+		##id = ##id * 2;
+		##a = ##a + 1;
+	}
+
+	return;
+
+_local_incorrectinstall:
+	message "インストールが異常終了した形跡があります。\n" + 
+			"tmc_inst.txt を参照してインストールをやり直して下さい。";
+	endmacroall;
+

@@ -1,0 +1,11 @@
+#	Extra Environment Definition
+VER_MAJOR = 3
+VER_MINOR = 4
+VER_RELEASE = 5
+COPYRIGHT = Copyright(C) 1995-2002 M. Sugiura(sugiura@ceres.dti.ne.jp)
+
+ACCELKEY_ALL = VTSLPRWCOFDMZH|
+#	ACCELKEY_MAIN_NUM = [Number of contents of the Main Menu] - 1
+ACCELKEY_MAIN_NUM = 8
+ACCELKEY_DEF = VTS|PR|WC|O
+

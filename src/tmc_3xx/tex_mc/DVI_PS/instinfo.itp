@@ -1,0 +1,20 @@
+;
+;	「dvips(k) and GSView32」用
+;	サポートマクロセット
+;
+
+[Info]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+ExternalName=dvips(k) and GSView32
+InternalName=DVI_PS
+DetectionMethod=e:GS_LIB|i:gsview32.ini
+SupportedWareFlag=2
+
+[Files]
+FileNum=5
+FILE_0=\DVI_PS\preview.mac
+FILE_1=\DVI_PS\d_config.mac
+FILE_2=\DVI_PS\install.mac
+FILE_3=\DVI_PS\update.mac
+FILE_4=\DVI_PS\instinfo.ini
+

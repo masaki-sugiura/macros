@@ -1,0 +1,20 @@
+;
+;	「dvi2tty」用
+;	サポートマクロセット
+;
+
+[Info]
+MacroVersion=%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+ExternalName=dvi2tty
+InternalName=DVI2TTY
+DetectionMethod=e:DVI2TTY
+SupportedWareFlag=2
+
+[Files]
+FileNum=5
+FILE_0=\DVI_PS\preview.mac
+FILE_1=\DVI_PS\d_config.mac
+FILE_2=\DVI_PS\install.mac
+FILE_3=\DVI_PS\update.mac
+FILE_4=\DVI_PS\instinfo.ini
+

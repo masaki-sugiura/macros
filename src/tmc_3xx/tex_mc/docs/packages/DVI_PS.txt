@@ -1,0 +1,97 @@
+    +-------------------------------------------------------------------+
+    |    Macro Package for TeX Module Control with HIDEMARU MACRO       |
+    |                                    DVI_PS Package Information     |
+    +-------------------------------------------------------------------+
+
+
+  【０】  概要
+
+    [dvips family]
+      ・淺山氏による dvips for MS-DOS
+      ・角藤氏による dvips(k) for Win32
+    [dvi2ps family]
+      ・角藤氏による jdvi2kps, dvi2ps for Win32
+    と、
+      ・Aladdin GSview (with Aladdin Ghostscript)(*)
+    を、秀丸マクロから直接操作します。
+
+    (*) Ver.5.0 以降の Ghostscript では PDF ファイルも扱えます
+        ＆ PDFTeX からの出力の場合は DVI->PS コンバータを通さずに、直接
+        GSview を実行します。
+
+
+  【１】  パッケージ名 etc.
+
+    ・パッケージ名            ：  DVI_PS
+    ・メニューでの名前        ：  dvips(k) and GSView32
+    ・基本マクロのバージョン  ：  3.3.0 以上が必要
+
+
+  【２】  このマクロから操作できるモジュール(の実行ファイル名)
+
+    ・Previewer モジュール  ：  [DVI->PS コンバータ]
+                                  dvips(k).exe, jdvi2kps.exe, dvi2ps.exe(*)
+                                [PS(PDF) プレビューア]
+                                  gsview32.exe
+
+    (*) 下記に述べる理由により、ちょっと手間がかかります(^^;。
+
+
+  【３】  ソフトウェアの検出方法
+
+    環境変数 GS_LIB が定義されているか、Windows フォルダに gsview32.ini が存
+    在した場合、ソフトウェアがインストールされていると判断します。
+
+
+  【４】  設定メニューの項目
+
+    ＊  DVI ware(Previewer モジュール)
+
+      [フォルダ/ファイル名関連の設定]
+
+        ・DVIPS のフォルダ名：(REG_SZ:"BaseDir_DVIPS")
+          下記の実行ファイルのあるフォルダ名を記入します。
+
+        ・ 〃 実行ファイル名：(REG_SZ:"CmdArgv_DVIPS")
+          DVI->PS コンバータの実行ファイル名を記入します。
+
+        ・ 〃 オプション：(REG_SZ:"CmdOpt_DVIPS")
+          コマンドラインオプション(ファイル名を含む)を記入します。
+          ここで、"$" で始まる文字列は以下のような特殊な意味を持ちます。
+
+            $f  : DVI(PDF) ファイルのあるフォルダ名(最後に "\" がつかない)
+            $s  : DVI(PDF) ファイルの拡張子を除いたファイル(ベース)名
+            $!  : TeX ware が出力したファイル名(PDFTeX なら $s.pdf, それ以外
+                  は $s.dvi に等しい)
+            $$  : "$" それ自身
+
+            例：「-o "$f\$s.ps" "$f\$s.dvi"」
+
+          ※  dvi2ps.exe はオプションによる出力ファイル名の指定ができないこ
+              と、及び秀丸マクロの runsync2 命令がリダイレクトを正しく処理で
+              きないことから、下記のように面倒な(^^;ことをする必要があります。
+
+            1)  別途以下のような BAT ファイル(NT なら CMD ファイル)を作成し、
+                上記のフォルダに置いて下さい。
+                [BAT ファイルの例 -- foo.bat]
+                  dvi2ps.exe "%1.dvi" > "%1.ps"
+
+            2)  実行ファイル名を foo.bat、
+                オプションは "$f\$s" と記入して下さい。
+
+        ・PSVIEW のフォルダ名：(REG_SZ:"BaseDir_PSVIEW")
+          下記の実行ファイルのあるフォルダ名を記入します。
+
+        ・ 〃 実行ファイル名：(REG_SZ:"CmdArgv_PSVIEW")
+          GSview の実行ファイル名を記入します。
+
+        ・ 〃 オプション：(REG_SZ:"CmdOpt_PSVIEW")
+          コマンドラインオプション(ファイル名を含む)を記入します
+          (上記の特殊な意味を持つ文字列が使用できます)。
+
+        ・PSVIEW のタイトルバー：(REG_SZ:"TitleBarString")
+          GSview のウィンドウのタイトルバーの文字列を記入します(上記の特殊な
+          意味を持つ文字列が使用できます)。既に起動している GSview を探すため
+          に使用しますので、意味の分からない方は変更しないようにして下さい。
+
+

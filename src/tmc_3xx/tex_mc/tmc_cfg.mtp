@@ -1,0 +1,558 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				CONFIGURATION MANAGEMENT (GENERAL)
+//	PLATFORM			INDEPENDENT
+//
+
+//	Registry Data
+#REG_VERSION	=	%VER_MINOR%;
+$REG_ROOT		=	"Sugi_Macro\\TeXModuleControl";
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+$REG_K_PLATFORM	=	"Platform";
+$REG_K_FORMAT	=	"FormatMenu";
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Check Registry Version for avoiding destructive change of data.
+call _kernel_getdatanum "", "Reg_Version";
+if (#REG_VERSION != ##return) {
+	call _kernel_showmsg 0, "Error_Module_InvalidMacroCall";
+	endmacro;
+}
+
+//	Platform Information
+#PTYPE_NUM = 4;
+$PTYPE_NAME[0] = "TeXware";
+$PTYPE_NAME[1] = "DVIware";
+$PTYPE_NAME[2] = "MkIdxware";
+$PTYPE_NAME[3] = "BibTeXware";
+#PTYPE_ID[0] = 1;
+#PTYPE_ID[1] = 2;
+#PTYPE_ID[2] = 4;
+#PTYPE_ID[3] = 8;
+
+##a = 0;
+while (##a < #PTYPE_NUM) {
+	$REG_ENUM[##a] = $PTYPE_NAME[##a] + "_Type";
+	##a = ##a + 1;
+}
+call _kernel_getenumdatastr $REG_K_MACROCONFIG, #PTYPE_NUM;
+##a = 0;
+while (##a < #PTYPE_NUM) {
+	$PLATFORM[##a] = $REG_VALUE[##a];
+	##a = ##a + 1;
+}
+
+call _kernel_getdatanum $REG_K_PLATFORM, "InstalledPlatform";
+#INST_PID = ##return;
+#SP_MAXNUM = 30;
+
+$DVI_TYPE[0] = "DVI";
+$DVI_TYPE[1] = "PS";
+$DVI_TYPE[2] = "PDF";
+#DVI_TYPE_NUM = 3;
+
+$TOOLDIR	= $MACRODIR + "\\tools";
+$LFNCMD		= "\"" + $TOOLDIR + "\\getlfn.exe\" ";
+$LFNINI		= $TOOLDIR + "\\getlfn.ini";
+
+$DYNINI	= $MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	= "ModuleCmd";
+
+disablebreak;
+
+##endmac = 0;
+
+//	Main Routine
+main:
+	if (##endmac) endmacro;
+	call _kernel_getdatanum $REG_K_FORMAT + "\\" + $PLATFORM[0],
+		"CurrentUsedFormat";
+	#FORMAT = ##return;
+	call _kernel_get_execcmd;
+	#SELECT = ##return;
+	call _kernel_write_execcmd 0;
+	if (!#SELECT) {
+		call _kernel_getdatastr $REG_K_FORMAT+"\\"+$PLATFORM[0], str(#FORMAT);
+		menu	"(&F)\tフォーマットの変更(現在は " + 
+					midstr($$return, strstr($$return, ":") + 1, 32) + " )",
+				"(&D)\t使用するパッケージの変更",
+				"(&M)\tマクロ動作その他の設定の変更",
+				"(&Z)\tメインメニューの項目変更",
+				"(&H)\t高度な設定の変更";
+		if (!result) endmacro;
+		else #SELECT = result;
+	} else ##endmac = 1;
+	if (#SELECT == 1) call _local_changeformat $PLATFORM[0], #FORMAT;
+	else if (#SELECT == 2) {
+		_pmenu:
+		##a = 0;
+		while (##a < #PTYPE_NUM) {
+			if (##a == 1) {
+				$$mm[1] = "(&" + leftstr($PTYPE_NAME[1], 1) + ")\t" + 
+						  $PTYPE_NAME[1] + " の変更";
+			} else {
+				if ($PLATFORM[##a] != "") {
+					call _kernel_getdatanum $REG_K_PLATFORM + "\\" + 
+						$PLATFORM[##a], "InstalledWareFlag";
+					if (##return & val(midstr("1248", ##a, 1))) {
+						call _kernel_getdatastr $REG_K_PLATFORM+"\\"+
+							$PLATFORM[##a], "PlatformName";
+						$$menuarg = $$return;
+					} else {
+						$PLATFORM[##a] = "";
+						call _kernel_writedatastr $REG_K_MACROCONFIG,
+							$PTYPE_NAME[##a] + "_Type", "";
+						continue;
+					}
+				} else $$menuarg = "未選択";
+				$$mm[##a] = "(&" + leftstr($PTYPE_NAME[##a], 1) + ")\t" + 
+					$PTYPE_NAME[##a] + " の変更(現在は " + $$menuarg + " )";
+			}
+			##a = ##a + 1;
+		}
+		menuarray $$mm, #PTYPE_NUM;
+		if (!result) goto main;
+		else {
+			##ptype = result - 1;
+			call _local_changeplatform ##ptype;
+			$PLATFORM[##ptype] = $$return;
+		}
+		goto _pmenu;
+	} else if (#SELECT == 3) call _local_paramconfig;
+	else if (#SELECT == 4) call _local_menucustomize;
+	else {
+		_su_menu:
+		menu	"(&P)\tインストール済みのパッケージ/モジュールの設定変更",
+				"(&I)\t新規パッケージのインストール/アンインストール",
+				"(&U)\tマクロのデータベースの消去";
+		if (!result) goto main;
+		else if (result == 1) {
+			_su_menu_sub:
+			call _local_selectplatformmenu #INST_PID, (1+2+4+8), "";
+			if ($$return == "") goto _su_menu;
+			else $$platform_type = $$return;
+			_su_menu_sub_2:
+			call _local_selectwaremenu $$platform_type;
+			if (##return == -1) goto _su_menu_sub;
+			call _kernel_execmacro $$platform_type + "\\" + 
+				leftstr($PTYPE_NAME[##return], 1) + "_config.mac";
+			goto _su_menu_sub_2;
+		} else if (result == 2) {
+			call _kernel_execmacro "tmc_inst.mac";
+			call _kernel_getdatanum $REG_K_PLATFORM, "InstalledPlatform";
+			#INST_PID = ##return;
+		} else if (result == 3) call _local_removedata;
+		goto _su_menu;
+	}
+	goto main;
+
+
+//	End of Main
+
+_local_changeformat:
+	call _kernel_getdatanum $REG_K_FORMAT + "\\" + $$1, "Num";
+	##num = ##return;
+	##a = 0;
+	while (##a < ##num) {
+		$REG_ENUM[##a] = str(##a);
+		##a = ##a + 1;
+	}
+	call _kernel_getenumdatastr $REG_K_FORMAT + "\\" + $$1, ##num;
+	##a = 0;
+	while (##a < ##num) {
+		$$fmt = midstr($REG_VALUE[##a], strstr($REG_VALUE[##a], ":") + 1, 256);
+		if (##a == ##2)
+			$$m[##a] = "(&" + str(##a) + ")\t[" + $$fmt + "]";
+		else $$m[##a] = "(&" + str(##a) + ")\t" + $$fmt;
+		##a = ##a + 1;
+	}
+	menuarray $$m, ##num;
+	if (result) {
+		call _kernel_writedatanum $REG_K_FORMAT + "\\" + $$1,
+			"CurrentUsedFormat", result - 1;
+	}
+	return;
+
+_local_changeplatform:
+	call _kernel_getdatanum $REG_K_PLATFORM, $PTYPE_NAME[##1] + "_Mask";
+	##installed = ##return & #INST_PID;
+	if (##installed) {
+		call _kernel_getdatastr $REG_K_MACROCONFIG,
+			$PTYPE_NAME[##1] + "_Type";
+		$$cur_type = $$return;
+	} else {
+		call _kernel_showmsg 0, "Error_Config_NoPlatform";
+		return "";
+	}
+	if (##1 == 1) {
+		// DVI ware は出力ファイルタイプ毎に選択
+		##a = 0;
+		while (##a < #DVI_TYPE_NUM) {
+			call _kernel_getdatastr $REG_K_MACROCONFIG,
+									"DVIware_" + $DVI_TYPE[##a];
+			$$dvi_type[##a] = $$return;
+			$$m[##a] = "(&" + str(##a) + ")\t" + $DVI_TYPE[##a] + 
+					   " ファイルに使う DVIware (現在は ";
+			if ($$dvi_type[##a] == "") $$m[##a] = $$m[##a] + "未選択)";
+			else $$m[##a] = $$m[##a] + $$dvi_type[##a] + ")";
+			##a = ##a + 1;
+		}
+		menuarray $$m, #DVI_TYPE_NUM;
+		if (!result) return $$cur_type;
+		##outtype = result - 1;
+
+		// DVIware の選択
+		call _local_selectplatformmenu ##installed, #PTYPE_ID[1],
+									   $$dvi_type[##outtype];
+		if ($$return == "") return $$cur_type;
+		$$dvi_type[##outtype] = $$return;
+
+		// 設定を反映
+		call _kernel_writedatastr $REG_K_MACROCONFIG,
+								  "DVIware_" + $DVI_TYPE[##outtype],
+								  $$dvi_type[##outtype];
+
+		// (もし現在の出力タイプなら) "DVIware_Type" の設定も変更
+		call _kernel_getdatanum $REG_K_MACROCONFIG, "OutputType";
+		if (##outtype == ##return) {
+			$$cur_type = $$dvi_type[##outtype];
+			call _kernel_writedatastr $REG_K_MACROCONFIG,
+									  $PTYPE_NAME[1] + "_Type",
+									  $$cur_type;
+		}
+	} else {
+		call _local_selectplatformmenu ##installed, #PTYPE_ID[##1], $$cur_type;
+		if ($$return != "") {
+			$$cur_type = $$return;
+			call _kernel_writedatastr $REG_K_MACROCONFIG,
+				$PTYPE_NAME[##1] + "_Type", $$cur_type;
+		}
+	}
+	return $$cur_type;
+
+_local_selectplatformmenu:
+	##id = 1;
+	##a = 0;
+	##b = 0;
+	while (##a < #SP_MAXNUM) {
+		if (##id & ##1) {
+			call _kernel_getdatastr $REG_K_PLATFORM, str(##id);
+			$$ptype[##b] = $$return;
+			$$keyname = $REG_K_PLATFORM + "\\" + $$ptype[##b];
+			call _kernel_getdatanum $$keyname, "InstalledWareFlag";
+			if (##return & ##2) {
+				call _kernel_getdatastr $$keyname, "PlatformName";
+				if ($$ptype[##b] == $$3)
+					$$m[##b] = "(&" + str(##b) + ")\t[" + $$return + "]";
+				else $$m[##b] = "(&" + str(##b) + ")\t" + $$return;
+				##b = ##b + 1;
+			}
+		}
+		##id = ##id * 2;
+		##a = ##a + 1;
+	}
+	menuarray $$m, ##b;
+	if (result) return $$ptype[result - 1];
+	else return "";
+
+_local_selectwaremenu:
+	call _kernel_getdatanum $REG_K_PLATFORM + "\\" + $$1, "InstalledWareFlag";
+	##installed = ##return;
+
+	##a = 0;
+	##b = 0;
+	while (##a < #PTYPE_NUM) {
+		if (#PTYPE_ID[##a] & ##installed) {
+			##ptype[##b] = ##a;
+			$$m[##b] = "(&" + leftstr($PTYPE_NAME[##a], 1) + ")\t" + 
+				$PTYPE_NAME[##a] + " の設定変更";
+			##b = ##b + 1;
+		}
+		##a = ##a + 1;
+	}
+	menuarray $$m, ##b;
+	if (result) return ##ptype[result - 1];
+	else return -1;
+
+_local_paramconfig:
+	//	Macro Server
+	call _kernel_getdatastr $REG_K_MACROCONFIG + "\\MacroServer", "BaseDir";
+	$MS_DIR = $$return;
+	//	TeX ware
+	call _kernel_getdatanum $REG_K_MACROCONFIG + "\\TeXware", "CompCheck";
+	##compcheck = ##return;
+	//	DVI ware
+	call _kernel_getdatanum $REG_K_MACROCONFIG + "\\DVIware", "OpenType";
+	##opentype = ##return;
+	//	Common Parameter
+	call _kernel_getdatastr $REG_K_MACROCONFIG, "EnableControlExt";
+	$$enablecontrolext = $$return;
+	call _kernel_getdatanum $REG_K_MACROCONFIG, "Ignore_Preamble";
+	##preamble = ##return;
+	call _kernel_getdatanum $REG_K_MACROCONFIG, "TimeWait";
+	##timewait = ##return;
+	call _kernel_getdatanum $REG_K_MACROCONFIG, "SourceSpecials";
+	##src_spec = ##return;
+
+	call _kernel_runms;
+	if (!##return) return;
+	title "CREATING DIALOG";
+	ddepoke "newdialog", "55,マクロ動作パラメータの設定(共通)";
+	ddepoke "newcontrol", "text,,マクロサーバのフォルダ名";
+	ddepoke "part", "24";
+	ddepoke "newcontrol", "edit,MS_DIR," + $MS_DIR;
+	ddepoke "newcontrol", "text,,マクロの起動を許すファイル";
+	ddepoke "part", "24";
+	ddepoke "newcontrol", "edit,EnableControlExt," + $$enablecontrolext;
+	ddepoke "newcontrol", "text,,「実行待ち」の秒数(5以内の整数)";
+	ddepoke "part", "40";
+	ddepoke "newcontrol", "edit,TimeWait," + str(##timewait);
+	ddepoke "newpage", "30";
+	ddepoke "newcontrol", "radio,CompCheck,相互参照の解決";
+	ddepoke "item", "自動で解決する";
+	ddepoke "item", "自動で解決しない";
+	ddepoke "default", str(2-##compcheck);
+	ddepoke "newcolumn", "25";
+	ddepoke "newcontrol", "radio,OpenType,同一DVIファイルの開き方";
+	ddepoke "item", "新規に開く";
+	ddepoke "item", "常に一つだけ開く";
+	ddepoke "item", "その都度確認する";
+	ddepoke "default", str(##opentype+1);
+	ddepoke "newpage", "30";
+	ddepoke "newcontrol", "radio,Ignore_Preamble," + 
+			"「一部分だけ～」時のプリアンブルの扱い";
+	ddepoke "item", "常にプリアンブルをコピーする";
+	ddepoke "item", "プリアンブルを無視する";
+	ddepoke "item", "その都度確認する";
+	ddepoke "default", str(##preamble+1);
+	ddepoke "newcolumn", "25";
+	ddepoke "newcontrol", "check,SourceSpecials,カーソル行のページにジャンプ";
+	ddepoke "default", str(##src_spec);
+	ddepoke "newpage", "55";
+	ddepoke "newcontrol", "text,,";
+	ddepoke "part", "35";
+	ddepoke "newcontrol", "okcancel";
+	title 0;
+
+	call _kernel_makedlg;
+	if( $$return == "0" ){
+		call _kernel_exitms;
+		return;
+	}
+	$$msdir_new = dderequest("getstring MS_DIR");
+	##compcheck = 2 - val(dderequest("getstate CompCheck"));
+	##opentype = val(dderequest("getstate OpenType")) - 1;
+	$$enablecontrolext = dderequest("getstring EnableControlExt");
+	##preamble = val(dderequest("getstate Ignore_Preamble")) - 1;
+	##timewait = val(dderequest("getstring TimeWait"));
+	if (##timewait > 5) ##timewait = 5;
+	##src_spec = val(dderequest("getstate SourceSpecials"));
+	call _kernel_exitms;
+	call _common_removelastsep $$msdir_new;
+	$$msdir_new = $$return + "\\";
+	if (!existfile($$msdir_new+"macserv.exe")) {
+		$MSGARG[0] = $$msdir_new+"macserv.exe";
+		call _kernel_showmsg 0, "Error_File_notExist";
+	} else {
+		call _kernel_runapp $LFNCMD + "\"" + $$msdir_new + "macserv.exe\"";
+		$MS_DIR = getinistr($LFNINI, "Result", "directory");
+		call _kernel_writedatastr $REG_K_MACROCONFIG + "\\MacroServer",
+			"BaseDir", $MS_DIR;
+	}
+	call _kernel_writedatanum $REG_K_MACROCONFIG + "\\TeXware",
+		"CompCheck", ##compcheck;
+	call _kernel_writedatanum $REG_K_MACROCONFIG + "\\DVIware",
+		"OpenType", ##opentype;
+	call _kernel_writedatastr $REG_K_MACROCONFIG, "EnableControlExt",
+		$$enablecontrolext;
+	call _kernel_writedatanum $REG_K_MACROCONFIG, "Ignore_Preamble",
+		##preamble;
+	call _kernel_writedatanum $REG_K_MACROCONFIG, "TimeWait", ##timewait;
+	call _kernel_writedatanum $REG_K_MACROCONFIG, "SourceSpecials", ##src_spec;
+	return;
+
+_local_removedata:
+	question "今からマクロのデータベースを消去します。\n" + 
+			"作業を続行してもよろしいですか？";
+	if (!result) return;
+	question "本当に？";
+	if (!result) return;
+	message "・・・ではデータベースを消去します。\n" + 
+			"マクロの完全なアンインストールについては\n" + 
+			$MACRODIR + "tex_mc\\docs\\tmc_inst.txt\n を参照して下さい。";
+	call _kernel_runapp "\"" + $TOOLDIR + "\\tmcunins.exe\" -c:";
+	message "・・・ではまたどこかでお会いしましょう・・\n" + 
+			"　　M. Sugiura (sugiura@ceres.dti.ne.jp)";
+	endmacroall;
+
+_local_menucustomize:
+	$$accel_key_all = "VTSLPRWCFDMZHO|";
+	$$accel_key_def = "VTS|PR|WC";
+	call _kernel_getdatastr $REG_K_MACROCONFIG, "MenuSequence_Main";
+	$$accel_key = $$return;
+	if ($$accel_key == "") $$accel_key = $$accel_key_def;
+	$$accel_key_old = $$accel_key;
+
+	call _kernel_runms;
+
+	##button_len = 10;
+	##list_len = 30;
+	##list_height = 20;
+	##width = 2 * (##button_len + ##list_len);
+	ddepoke "newdialog", str(##button_len) + ",メインメニューのカスタマイズ";
+	call _local_create_button "up,[↑一つ上へ]", "2", "down,[↓一つ下へ]", "3";
+	ddepoke "newcolumn", str(##list_len);
+	ddepoke "newcontrol", "text,,メインメニュー";
+	ddepoke "newcontrol", "list,Show,";
+	call _local_create_menulist $$accel_key, 0;
+	ddepoke "height", str(##list_height);
+	ddepoke "notify", "10";
+	ddepoke "newcolumn", str(##button_len);
+	call _local_create_button "add,[←追加]", "4", "delete,[→削除]", "5";
+	ddepoke "newcolumn", str(##list_len);
+	ddepoke "newcontrol", "text,,追加できる項目一覧";
+	ddepoke "newcontrol", "list,All,";
+	ddepoke "height", str(##list_height);
+	call _local_create_menulist $$accel_key_all, 0;
+	ddepoke "notify", "20";
+	ddepoke "newpage", str(##width);
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", str(##button_len);
+	ddepoke "newcontrol", "button,default,[デフォルト]";
+	ddepoke "notify", "6";
+	ddepoke "part", str(##list_len/2);
+	ddepoke "newcontrol", "button,default,[やり直し]";
+	ddepoke "notify", "7";
+	ddepoke "part", str(##list_len/2);
+	ddepoke "newcontrol", "text,, ";
+	ddepoke "part", str(##button_len);
+	ddepoke "newcontrol", "okcancel";
+
+	ddeexecute "dialog " + str(hidemaruhandle(0));
+	ddestartadvice "dlgresult", $$a;
+	##c = 0;
+	while (1) {
+		$$a = "";
+		while (strlen($$a) == 0) ddewaitadvice $$a, 100;
+		if ($$a == "0" || $$a == "1") break;
+		else if ($$a == "2" || $$a == "3") {
+			//	項目の上げ下げ
+			##t = 3 - val($$a);
+			##s = val(dderequest("getstate Show")) - 1;
+			if ((##s == -1)     ||
+				(##t && (!##s)) ||
+				((!##t) && (##s == strlen($$accel_key) - 1))) {
+				beep;
+				continue;
+			}
+			$$accel_key =	leftstr($$accel_key, ##s - ##t) + 
+							midstr($$accel_key, ##s - ##t + 1, 1) + 
+							midstr($$accel_key, ##s - ##t, 1) + 
+							midstr($$accel_key, ##s - ##t + 2, 10);
+		} else if ($$a == "4" || $$a == "20") {
+			//	リストへの項目追加
+			if (strlen($$accel_key) == ##list_height) {
+				beep;
+				message "メニュー項目は最大" + str(##list_height) + 
+					"個までです。";
+				continue;
+			}
+			##s = val(dderequest("getstate All")) - 1;
+			##t = val(dderequest("getstate Show")) - 1;
+			if (##s == -1) {
+				beep;
+				continue;
+			}
+			if (##t == -1) ##t = strlen($$accel_key);
+			$$accel_key =	leftstr($$accel_key, ##t) + 
+							midstr($$accel_key_all, ##s, 1) + 
+							midstr($$accel_key, ##t, 10);
+		} else if ($$a == "5" || $$a == "10") {
+			//	リストから項目削除
+			##s = val(dderequest("getstate Show")) - 1;
+			if (##s == -1) {
+				beep;
+				continue;
+			}
+			$$accel_key =	leftstr($$accel_key, ##s) + 
+							midstr($$accel_key, ##s + 1, 10);
+		} else if ($$a == "6") $$accel_key = $$accel_key_def;
+		else if ($$a == "7") $$accel_key = $$accel_key_old;
+		call _local_create_menulist $$accel_key, 1;
+	}
+	ddestopadvice "dlgresult";
+	ddeexecute "enddialog";
+	call _kernel_exitms;
+
+	if ($$a == "1") {
+		if (!strlen($$accel_key)) {
+			beep;
+			message "項目が一つもありません。デフォルト設定に戻します。";
+			$$accel_key = $$accel_key_def;
+		} else if (strstr($$accel_key, "C") == -1)
+			$$accel_key = $$accel_key + "C";
+		call _kernel_writedatastr $REG_K_MACROCONFIG, "MenuSequence_Main",
+			$$accel_key;
+	}
+	return;
+
+_local_create_button:
+	ddepoke "newcontrol", "text,,";
+	ddepoke "newcontrol", "text,,";
+	ddepoke "newcontrol", "text,,";
+	ddepoke "newcontrol", "text,,";
+	ddepoke "newcontrol", "button," + $$1;
+	ddepoke "notify", $$2;
+	ddepoke "newcontrol", "text,,";
+	ddepoke "newcontrol", "button," + $$3;
+	ddepoke "notify", $$4;
+	ddepoke "newcontrol", "text,,";
+	ddepoke "newcontrol", "text,,";
+	return;
+
+_local_create_menulist:
+	if (##2) ddeexecute "resetlist Show";
+	##l = strlen($$1);
+	##a = 0;
+	while (##a < ##l) {
+		$$k = midstr($$1, ##a, 1);
+		if ($$k == "V")      $$k = "(V)(TeXコンパイルetc.＆)プレビュー";
+		else if ($$k == "T") $$k = "(T)１回だけTeXコンパイル";
+		else if ($$k == "S") $$k = "(S)一部分だけコンパイル＆プレビュー";
+		else if ($$k == "L") $$k = "(L)ログファイルのオープン";
+		else if ($$k == "P") $$k = "(P)プロジェクト処理";
+		else if ($$k == "R") $$k = "(R)プロジェクト管理";
+		else if ($$k == "W") $$k = "(W)各処理の実行待ち";
+		else if ($$k == "C") $$k = "(C)各種設定の変更";
+		else if ($$k == "O") $$k = "(O)出力ファイルタイプの変更";
+		else if ($$k == "F") $$k = "(F)フォーマットの変更";
+		else if ($$k == "D") $$k = "(D)使用するパッケージの変更";
+		else if ($$k == "M") $$k = "(M)マクロ動作その他の設定の変更";
+		else if ($$k == "Z") $$k = "(Z)メインメニューの項目変更";
+		else if ($$k == "H") $$k = "(H)高度な設定の変更";
+		else $$k = "----------------------------";
+		if (##2) ddeexecute "setitem Show," + $$k;
+		else ddepoke "item", $$k;
+		##a = ##a + 1;
+	}
+	if (!##2) ddepoke "default", "1";
+	return ##l;
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+

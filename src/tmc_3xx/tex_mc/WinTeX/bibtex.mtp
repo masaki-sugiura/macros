@@ -1,0 +1,123 @@
+//--------------------------------------------------------------------------//
+//		TeX Module Control with HIDEMARU Macro								//
+//																			//
+//			Sugi-Macro  -Macro Factory for HIDEMARU Editor-					//
+//			%COPYRIGHT%		//
+//																			//
+//--------------------------------------------------------------------------//
+
+//!HEADER
+//	INTERNAL VERSION	%VER_MAJOR%.%VER_MINOR%.%VER_RELEASE%
+//	PURPOSE				MODULE CONTROL MICRO KERNEL
+//	PLATFORM			TeX for Windows
+//
+
+//--------------------------------------------------------------------------//
+//	このマクロは TeX for Windows 専用です。									//
+//--------------------------------------------------------------------------//
+
+//	Platform identifier
+//		呼び出しマクロが正しいかどうかのチェックやレジストリアクセスに使用
+//		レジストリキー名の仕様に準拠する必要がある
+//
+$BIBTEXWARE	=	"WinTeX";
+
+//----------------------------------//
+//	Common global data				//
+//----------------------------------//
+
+//	Definition of return code from module control micro-kernel
+//		マクロからの戻り値の定義
+//
+#RETURN_COMPLETE	=	  0;		//	コンパイルが正常に終了
+#RETURN_ERROR		=	255;		//	コンパイル実行エラー
+
+//	Base registry path
+//		レジストリのパス名の定義
+//
+$REG_ROOT = "Sugi_Macro\\TeXModuleControl";	//	マクロのルートキー
+$REG_K_PI_BASE = "Platform\\" + $BIBTEXWARE + "\\BibTeXware";
+	//	プラットフォームのサブキー
+$REG_K_MACROCONFIG	=	"MacroConfig";	//	マクロの設定定義のサブキー
+
+//	Get MacroFolder's Name
+call _kernel_getmacrodir;
+$MACRODIR = $$return + "\\tex_mc";
+
+//	Message Data Information
+$MSGINI	=	$MACRODIR + "\\message.ini";
+
+//	Dynamic Data Information
+$DYNINI	=	$MACRODIR + "\\dyndata.ini";
+$DYN_MODULECMD	=	"ModuleCmd";	//	モジュール動作定義のサブキー
+$DYN_MC_RETURN	=	"return_bibtex";	//	モジュールの戻り値
+$DYN_PROJECT	=	"CurrentProjectInfo";
+
+//	Current Project Information
+//		コンパイル対象ファイルの情報
+//
+$FILENAME	=	getinistr($DYNINI,$DYN_PROJECT,"FileName");
+$SHORTNAME	=	getinistr($DYNINI,$DYN_PROJECT,"ShortName");
+$PROJECTDIR	=	getinistr($DYNINI,$DYN_PROJECT,"ProjectDir");
+
+
+//----------------------------------//
+//	Platform dependent codes		//
+//----------------------------------//
+
+////////	TeXware Information (of pTeX GUI SHELL)
+call _kernel_getdatastr $REG_K_PI_BASE, "BaseDir";
+$BIBTEXWAREDIR = $$return;
+$CMDARGV = "wbibtex";
+
+//	Start Main Routine
+main:
+	##hwnd = hidemaruhandle( 0 );
+	##hwnd_bibtex = findwindow($CMDARGV);
+	if( !##hwnd_bibtex ){
+		run "\"" + $BIBTEXWAREDIR + "\\" + $CMDARGV + ".exe\"";
+		if( !result ){
+			$MSGARG[0] = $CMDARGV;
+			call _kernel_showmsg 0, "Error_Module_ExeOpen";
+			writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, #RETURN_ERROR;
+			endmacro;
+		}
+		goto main;
+	}
+	ddeinitiate "JBibTeX", "JBibTeX";
+	if( !result ){
+		##s = sendmessage(##hwnd_bibtex,0x0112,0xF060,0);
+		$MSGARG[0] = $CMDARGV;
+		call _kernel_showmsg 0, "Error_Module_DDEInit";
+		writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, #RETURN_ERROR;
+		endmacro;
+	}
+	ddeexecute "[FileExit]";
+	$name = "";
+	ddestartadvice "Status", $name;
+	if( !result ){
+		ddestopadvice "Status";
+		ddeterminate;
+		##Send = sendmessage(##hwnd_bibtex,0x0112,0xF060,0);
+		$MSGARG[0] = $CMDARGV;
+		call _kernel_showmsg 0, "Error_Module_StartAdvice";
+		continue;
+	}
+	ddeexecute "[JBibTeX(" + $PROJECTDIR + "\\" + $SHORTNAME + ".aux)]";
+	while( $name == "" ) ddewaitadvice  "Advise", 999;
+	ddestopadvice "Status";
+	ddeterminate;
+	##s = sendmessage(##hwnd_bibtex,0x0112,0xF060,0);
+
+	if( $name == "ERROR" ) ##answer = #RETURN_ERROR;
+	else if( $name == "OK" ) ##answer = #RETURN_COMPLETE;
+	writeininum $DYNINI, $DYN_MODULECMD, $DYN_MC_RETURN, ##answer;
+	endmacro;
+
+//	End Main Routine
+
+
+//------------------------------------------//
+//	- Module Control Service Functions -	//
+//------------------------------------------//
+
